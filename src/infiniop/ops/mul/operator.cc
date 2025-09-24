@@ -14,7 +14,9 @@
 #ifdef ENABLE_KUNLUN_API
 #include "kunlun/mul_kunlun.h"
 #endif
-
+// #ifdef ENABLE_OPENCL_API
+// #include "opencl/mul_opencl.h"
+// #endif
 __C infiniStatus_t infiniopCreateMulDescriptor(
     infiniopHandle_t handle,
     infiniopMulDescriptor_t *desc_ptr,
@@ -48,6 +50,10 @@ __C infiniStatus_t infiniopCreateMulDescriptor(
 #ifdef ENABLE_KUNLUN_API
         CREATE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+// #ifdef ENABLE_OPENCL_API
+//         CREATE(INFINI_DEVICE_OPENCL,opencl);
+// #endif
+
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -79,6 +85,9 @@ __C infiniStatus_t infiniopGetMulWorkspaceSize(infiniopMulDescriptor_t desc, siz
 #ifdef ENABLE_KUNLUN_API
         GET(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+// #ifdef ENABEL_OPENCL_API
+//         GET(INFINI_DEVICE_OPENCL,opencl);
+// #endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -119,6 +128,9 @@ __C infiniStatus_t infiniopMul(
 #ifdef ENABLE_KUNLUN_API
         CALCULATE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+// #ifdef ENABLE_OPENCL_API
+//         CALCULATE(INFINI_DEVICE_OPENCL,opencl);
+// #endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -152,6 +164,9 @@ infiniopDestroyMulDescriptor(infiniopMulDescriptor_t desc) {
 #ifdef ENABLE_KUNLUN_API
         DELETE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+// #ifdef ENABLE_OPENCL_API
+//         DELETE(INFINI_DEVICE_OPENCL, opencl);
+// #endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
