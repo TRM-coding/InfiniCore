@@ -24,7 +24,7 @@
 #include "kunlun/random_sample_kunlun.h"
 #endif
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopCreateRandomSampleDescriptor(
     infiniopHandle_t handle,
     infiniopRandomSampleDescriptor_t *desc_ptr,
@@ -73,7 +73,7 @@ infiniopCreateRandomSampleDescriptor(
 #undef CREATE
 };
 
-__C infiniStatus_t infiniopGetRandomSampleWorkspaceSize(
+INFINI_EXTERN_C infiniStatus_t infiniopGetRandomSampleWorkspaceSize(
     infiniopRandomSampleDescriptor_t desc,
     size_t *size) {
 
@@ -118,7 +118,7 @@ __C infiniStatus_t infiniopGetRandomSampleWorkspaceSize(
 #undef GET
 }
 
-__C infiniStatus_t infiniopRandomSample(
+INFINI_EXTERN_C infiniStatus_t infiniopRandomSample(
     infiniopRandomSampleDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -173,7 +173,7 @@ __C infiniStatus_t infiniopRandomSample(
 #undef CALCULATE
 }
 
-__C infiniStatus_t infiniopDestroyRandomSampleDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopDestroyRandomSampleDescriptor(
     infiniopRandomSampleDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                          \

@@ -18,7 +18,7 @@
 #include "bang/add_bang.h"
 #endif
 
-__C infiniStatus_t infiniopCreateAddDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateAddDescriptor(
     infiniopHandle_t handle,
     infiniopAddDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t c_desc,
@@ -62,7 +62,7 @@ __C infiniStatus_t infiniopCreateAddDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t infiniopGetAddWorkspaceSize(infiniopAddDescriptor_t desc, size_t *size) {
+INFINI_EXTERN_C infiniStatus_t infiniopGetAddWorkspaceSize(infiniopAddDescriptor_t desc, size_t *size) {
 
 #define GET(CASE, NAMESPACE)                                                               \
     case CASE:                                                                             \
@@ -96,7 +96,7 @@ __C infiniStatus_t infiniopGetAddWorkspaceSize(infiniopAddDescriptor_t desc, siz
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopAdd(
+INFINI_EXTERN_C infiniStatus_t infiniopAdd(
     infiniopAddDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -138,7 +138,7 @@ __C infiniStatus_t infiniopAdd(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroyAddDescriptor(infiniopAddDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                \

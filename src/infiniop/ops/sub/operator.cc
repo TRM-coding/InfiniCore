@@ -15,7 +15,7 @@
 #include "kunlun/sub_kunlun.h"
 #endif
 
-__C infiniStatus_t infiniopCreateSubDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateSubDescriptor(
     infiniopHandle_t handle,
     infiniopSubDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t c_desc,
@@ -56,7 +56,7 @@ __C infiniStatus_t infiniopCreateSubDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t infiniopGetSubWorkspaceSize(infiniopSubDescriptor_t desc, size_t *size) {
+INFINI_EXTERN_C infiniStatus_t infiniopGetSubWorkspaceSize(infiniopSubDescriptor_t desc, size_t *size) {
 
 #define GET(CASE, NAMESPACE)                                                               \
     case CASE:                                                                             \
@@ -88,7 +88,7 @@ __C infiniStatus_t infiniopGetSubWorkspaceSize(infiniopSubDescriptor_t desc, siz
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopSub(
+INFINI_EXTERN_C infiniStatus_t infiniopSub(
     infiniopSubDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -127,7 +127,7 @@ __C infiniStatus_t infiniopSub(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroySubDescriptor(infiniopSubDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                \

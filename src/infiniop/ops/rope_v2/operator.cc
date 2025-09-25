@@ -18,7 +18,7 @@
 #include "metax/rope_v2_metax.h"
 #endif
 
-__C infiniStatus_t infiniopCreateRoPEv2Descriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateRoPEv2Descriptor(
     infiniopHandle_t handle,
     infiniopRoPEv2Descriptor_t *desc_ptr,
     infiniopTensorDescriptor_t y,
@@ -71,7 +71,7 @@ __C infiniStatus_t infiniopCreateRoPEv2Descriptor(
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopGetRoPEv2WorkspaceSize(infiniopRoPEv2Descriptor_t desc,
+INFINI_EXTERN_C infiniStatus_t infiniopGetRoPEv2WorkspaceSize(infiniopRoPEv2Descriptor_t desc,
                                                   size_t *size) {
 #define GET(CASE, NAMESPACE)                                                                         \
     case CASE:                                                                                       \
@@ -109,7 +109,7 @@ __C infiniStatus_t infiniopGetRoPEv2WorkspaceSize(infiniopRoPEv2Descriptor_t des
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopRoPEv2(
+INFINI_EXTERN_C infiniStatus_t infiniopRoPEv2(
     infiniopRoPEv2Descriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -157,7 +157,7 @@ __C infiniStatus_t infiniopRoPEv2(
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroyRoPEv2Descriptor(infiniopRoPEv2Descriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                    \

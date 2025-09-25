@@ -9,7 +9,7 @@
 #include "nvidia/topkrouter_nvidia.cuh"
 #endif
 
-__C infiniStatus_t infiniopCreateTopkrouterDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateTopkrouterDescriptor(
     infiniopHandle_t handle,
     infiniopTopkrouterDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t x_desc,
@@ -36,7 +36,7 @@ __C infiniStatus_t infiniopCreateTopkrouterDescriptor(
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopGetTopkrouterWorkspaceSize(infiniopTopkrouterDescriptor_t desc, size_t *size) {
+INFINI_EXTERN_C infiniStatus_t infiniopGetTopkrouterWorkspaceSize(infiniopTopkrouterDescriptor_t desc, size_t *size) {
 
 #define GET(CASE, NAMESPACE)                                                                      \
     case CASE:                                                                                    \
@@ -57,7 +57,7 @@ __C infiniStatus_t infiniopGetTopkrouterWorkspaceSize(infiniopTopkrouterDescript
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopTopkrouter(infiniopTopkrouterDescriptor_t desc, void *workspace, size_t workspace_size,
+INFINI_EXTERN_C infiniStatus_t infiniopTopkrouter(infiniopTopkrouterDescriptor_t desc, void *workspace, size_t workspace_size,
                                       void *values, void *indices, void *x, void *correction_bias, float routed_scaling_factor, size_t topk, void *stream) {
 
 #define CALCULATE(CASE, NAMESPACE)                                                         \
@@ -79,7 +79,7 @@ __C infiniStatus_t infiniopTopkrouter(infiniopTopkrouterDescriptor_t desc, void 
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopDestroyTopkrouterDescriptor(infiniopTopkrouterDescriptor_t desc) {
+INFINI_EXTERN_C infiniStatus_t infiniopDestroyTopkrouterDescriptor(infiniopTopkrouterDescriptor_t desc) {
 
 #define DESTROY(CASE, NAMESPACE)                                                \
     case CASE:                                                                  \

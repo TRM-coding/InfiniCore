@@ -16,7 +16,7 @@
 #endif
 #endif
 
-__C infiniStatus_t infiniopCreateReluDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateReluDescriptor(
     infiniopHandle_t handle,
     infiniopReluDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t y_desc,
@@ -58,7 +58,7 @@ __C infiniStatus_t infiniopCreateReluDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t infiniopGetReluWorkspaceSize(infiniopReluDescriptor_t desc, size_t *size) {
+INFINI_EXTERN_C infiniStatus_t infiniopGetReluWorkspaceSize(infiniopReluDescriptor_t desc, size_t *size) {
 
 #define GET(CASE, NAMESPACE)                                                                \
     case CASE:                                                                              \
@@ -92,7 +92,7 @@ __C infiniStatus_t infiniopGetReluWorkspaceSize(infiniopReluDescriptor_t desc, s
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopRelu(
+INFINI_EXTERN_C infiniStatus_t infiniopRelu(
     infiniopReluDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -133,7 +133,7 @@ __C infiniStatus_t infiniopRelu(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroyReluDescriptor(infiniopReluDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                 \

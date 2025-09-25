@@ -12,7 +12,7 @@
 #include "metax/softplus_metax.h"
 #endif
 
-__C infiniStatus_t infiniopCreateSoftplusDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateSoftplusDescriptor(
     infiniopHandle_t handle,
     infiniopSoftplusDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t y_desc,
@@ -45,7 +45,7 @@ __C infiniStatus_t infiniopCreateSoftplusDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t infiniopGetSoftplusWorkspaceSize(infiniopSoftplusDescriptor_t desc, size_t *size) {
+INFINI_EXTERN_C infiniStatus_t infiniopGetSoftplusWorkspaceSize(infiniopSoftplusDescriptor_t desc, size_t *size) {
 
 #define GET(CASE, NAMESPACE)                                                                    \
     case CASE:                                                                                  \
@@ -71,7 +71,7 @@ __C infiniStatus_t infiniopGetSoftplusWorkspaceSize(infiniopSoftplusDescriptor_t
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopSoftplus(
+INFINI_EXTERN_C infiniStatus_t infiniopSoftplus(
     infiniopSoftplusDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -103,7 +103,7 @@ __C infiniStatus_t infiniopSoftplus(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroySoftplusDescriptor(infiniopSoftplusDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                     \

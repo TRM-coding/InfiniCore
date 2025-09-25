@@ -3,6 +3,8 @@
 #include <CL/cl.h>
 #include <mutex>
 #include <vector>
+#include <algorithm>
+#include<iostream>
 
 #define CHECK_CLRT(RT_API) CHECK_INTERNAL(RT_API, CL_SUCCESS)
 
@@ -45,6 +47,7 @@ static void cleanupResources() {
     platform = nullptr;
     initialized = false;
 }
+
 infiniStatus_t init() {
     std::lock_guard<std::mutex> lk(init_mutex);
     if (initialized) {
@@ -73,8 +76,10 @@ infiniStatus_t init() {
     if (device_count == 0) {
         return INFINI_STATUS_DEVICE_NOT_FOUND;
     }
+    device_count=1;
     devices.resize(static_cast<size_t>(device_count));
     max_mem_alloc_size.resize(static_cast<size_t>(device_count));
+    std::cout<<"device_count:"<<device_count<<std::endl;
     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, device_count, devices.data(), nullptr);
     if (err != CL_SUCCESS) {
         cleanupResources();
@@ -103,6 +108,95 @@ infiniStatus_t init() {
     initialized = true;
     return INFINI_STATUS_SUCCESS;
 }
+
+
+// infiniStatus_t init() {
+//     std::lock_guard<std::mutex> lk(init_mutex);
+//     if (initialized) {
+//         return INFINI_STATUS_SUCCESS;
+//     }
+//     cl_int err = CL_SUCCESS;
+//     cl_uint num_platforms = 0;
+//     err = clGetPlatformIDs(1, nullptr, &num_platforms);
+//     if (err != CL_SUCCESS) {
+//         cleanupResources();
+//         return INFINI_STATUS_DEVICE_NOT_INITIALIZED;
+//     }
+//     if (num_platforms == 0) {
+//         return INFINI_STATUS_DEVICE_NOT_FOUND;
+//     }
+//     err = clGetPlatformIDs(1, &platform, nullptr);
+//     if (err != CL_SUCCESS) {
+//         cleanupResources();
+//         return INFINI_STATUS_DEVICE_NOT_INITIALIZED;
+//     }
+
+//     // Print selected platform name and vendor
+//     char platform_name[128];
+//     clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(platform_name), platform_name, nullptr);
+//     std::cout << "Selected platform: " << platform_name << std::endl;
+
+//     char platform_vendor[128];
+//     clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, sizeof(platform_vendor), platform_vendor, nullptr);
+//     std::cout << "Platform vendor: " << platform_vendor << std::endl;
+
+//     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &device_count);
+//     if (err != CL_SUCCESS) {
+//         cleanupResources();
+//         return INFINI_STATUS_DEVICE_NOT_INITIALIZED;
+//     }
+//     if (device_count == 0) {
+//         return INFINI_STATUS_DEVICE_NOT_FOUND;
+//     }
+//     devices.resize(static_cast<size_t>(device_count));
+//     max_mem_alloc_size.resize(static_cast<size_t>(device_count));
+//     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, device_count, devices.data(), nullptr);
+//     if (err != CL_SUCCESS) {
+//         cleanupResources();
+//         return INFINI_STATUS_DEVICE_NOT_INITIALIZED;
+//     }
+
+//     // Print information about the selected devices
+//     for (cl_uint i = 0; i < device_count; ++i) {
+//         char device_name[128];
+//         clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
+//         std::cout << "Selected device " << i << ": " << device_name << std::endl;
+
+//         cl_ulong max_alloc_size = 0;
+//         clGetDeviceInfo(devices[i], CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(max_alloc_size), &max_alloc_size, nullptr);
+//         std::cout << "Device " << i << " max memory allocation size: " << max_alloc_size << " bytes" << std::endl;
+
+//         cl_uint compute_units = 0;
+//         clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, nullptr);
+//         std::cout << "Device " << i << " max compute units: " << compute_units << std::endl;
+
+//         cl_ulong global_mem_size = 0;
+//         clGetDeviceInfo(devices[i], CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(global_mem_size), &global_mem_size, nullptr);
+//         std::cout << "Device " << i << " global memory size: " << global_mem_size << " bytes" << std::endl;
+//     }
+
+//     context = clCreateContext(nullptr, device_count, devices.data(), nullptr, nullptr, &err);
+//     if (err != CL_SUCCESS) {
+//         cleanupResources();
+//         return INFINI_STATUS_DEVICE_NOT_INITIALIZED;
+//     }
+
+//     queues.resize(static_cast<size_t>(device_count));
+//     for (cl_uint i = 0; i < device_count; ++i) {
+//         cl_command_queue q = clCreateCommandQueueWithProperties(context, devices[i], nullptr, &err);
+//         if (err != CL_SUCCESS) {
+//             cleanupResources();
+//             return INFINI_STATUS_DEVICE_NOT_INITIALIZED;
+//         }
+//         queues[i].push_back(q);
+//         cl_ulong max_alloc_size = 0;
+//         clGetDeviceInfo(devices[i], CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(max_alloc_size), &max_alloc_size, nullptr);
+//         max_mem_alloc_size[i] = static_cast<size_t>(max_alloc_size);
+//     }
+//     initialized = true;
+//     return INFINI_STATUS_SUCCESS;
+// }
+
 
 infiniStatus_t getDeviceCount(int *count) { // 空指针会在上层检查--这里再加一次检查，规范
     if (!count) {
@@ -294,12 +388,12 @@ infiniStatus_t getOpenclStream(infinirtOpenclStream_t *cl_queue) {
     return INFINI_STATUS_SUCCESS;
 }
 } // namespace infinirt::opencl
-__C infiniStatus_t infinirtGetOpenclDevice(infinirtOpenclDevice_t *cl_device) {
+INFINI_EXTERN_C infiniStatus_t infinirtGetOpenclDevice(infinirtOpenclDevice_t *cl_device) {
     return infinirt::opencl::getOpenclDevice(cl_device);
 }
-__C infiniStatus_t infinirtGetOpenclContext(infinirtOpenclContext_t *cl_context) {
+INFINI_EXTERN_C infiniStatus_t infinirtGetOpenclContext(infinirtOpenclContext_t *cl_context) {
     return infinirt::opencl::getOpenclContext(cl_context);
 }
-__C infiniStatus_t infinirtGetOpenclStream(infinirtOpenclStream_t *cl_queue) {
+INFINI_EXTERN_C infiniStatus_t infinirtGetOpenclStream(infinirtOpenclStream_t *cl_queue) {
     return infinirt::opencl::getOpenclStream(cl_queue);
 }

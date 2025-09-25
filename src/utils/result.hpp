@@ -2,8 +2,8 @@
 #define __INFINIUTILS_RESULT_H__
 
 #include "check.h"
-#include <infinicore.h>
 #include <variant>
+#include <infinicore.h>
 
 #define CHECK_RESULT(RESULT)    \
     if (!RESULT) {              \

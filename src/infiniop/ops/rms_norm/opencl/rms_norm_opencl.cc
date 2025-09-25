@@ -2,6 +2,7 @@
 #include "../../../../infinirt/opencl/infinirt_opencl.h"
 #include "../../../devices/opencl/opencl_common.h"
 #include <CL/cl.h>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -26,7 +27,7 @@ static const char *RmsNormKernelSource = R"CLC(
 #define ITEMS_THREAD 1
 #endif
 
-typedef unsigned int Tidx;
+typedef int Tidx;
 
 kernel void rms_norm(
     global Ta *y_,
@@ -392,6 +393,44 @@ infiniStatus_t Descriptor::calculate(
 
     CHECK_STATUS(infinirtGetOpenclDevice(&device));
     CHECK_STATUS(infinirtGetOpenclContext(&context));
+
+    auto device_cl = reinterpret_cast<cl_device_id>(device);
+    cl_context context_cl = reinterpret_cast<cl_context>(context);
+
+    cl_uint num_devices;
+    auto err_c = clGetContextInfo(context_cl, CL_CONTEXT_NUM_DEVICES, sizeof(num_devices), &num_devices, nullptr);
+    if (err_c != CL_SUCCESS) {
+        std::cerr << "Error getting context device count!" << std::endl;
+    } else {
+        std::cout << "Number of Devices in Context: " << num_devices << std::endl;
+    }
+
+    // 获取上下文中的设备列表
+    cl_device_id *devices_in_context = new cl_device_id[num_devices];
+    err_c = clGetContextInfo(context_cl, CL_CONTEXT_DEVICES, num_devices * sizeof(cl_device_id), devices_in_context, nullptr);
+    if (err_c != CL_SUCCESS) {
+        std::cerr << "Error getting devices in context!" << std::endl;
+    } else {
+        std::cout << "Devices in Context:" << std::endl;
+        for (cl_uint i = 0; i < num_devices; ++i) {
+            char device_name[1024];
+            err_c = clGetDeviceInfo(devices_in_context[i], CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
+            if (err_c != CL_SUCCESS) {
+                std::cerr << "Error getting device name!" << std::endl;
+            } else {
+                std::cout << "Device " << i + 1 << ": " << device_name << std::endl;
+            }
+        }
+    }
+
+    char device_name[1024];
+    auto err = clGetDeviceInfo(device_cl, CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error getting device name!" << std::endl;
+    } else {
+        std::cout << "Device Name: " << device_name << std::endl;
+    }
+
     cl_context clcontext = static_cast<cl_context>(context);
     cl_device_id cldevice = static_cast<cl_device_id>(device);
     if (!stream) {

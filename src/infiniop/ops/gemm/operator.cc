@@ -23,8 +23,11 @@
 #ifdef ENABLE_KUNLUN_API
 #include "kunlun/gemm_kunlun.h"
 #endif
+#ifdef ENABLE_OPENCL_API
+#include "opencl/gemm_opencl.h"
+#endif
 
-__C infiniStatus_t infiniopCreateGemmDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateGemmDescriptor(
     infiniopHandle_t handle,
     infiniopGemmDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t c_desc,
@@ -67,6 +70,9 @@ __C infiniStatus_t infiniopCreateGemmDescriptor(
 #ifdef ENABLE_KUNLUN_API
         CREATE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CREATE(INFINI_DEVICE_OPENCL, opencl);
+#endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -75,7 +81,7 @@ __C infiniStatus_t infiniopCreateGemmDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopGetGemmWorkspaceSize(
     infiniopGemmDescriptor_t desc,
     size_t *size) {
@@ -111,6 +117,9 @@ infiniopGetGemmWorkspaceSize(
 #ifdef ENABLE_KUNLUN_API
         GET(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+#ifdef ENABLE_OPENCL_API
+        GET(INFINI_DEVICE_OPENCL, opencl);
+#endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -119,7 +128,7 @@ infiniopGetGemmWorkspaceSize(
 #undef GET
 }
 
-__C infiniStatus_t infiniopGemm(
+INFINI_EXTERN_C infiniStatus_t infiniopGemm(
     infiniopGemmDescriptor_t desc,
     void *workspace, size_t workspace_size,
     void *c,
@@ -163,6 +172,9 @@ __C infiniStatus_t infiniopGemm(
 #ifdef ENABLE_KUNLUN_API
         CALCULATE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CALCULATE(INFINI_DEVICE_OPENCL, opencl);
+#endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -171,7 +183,7 @@ __C infiniStatus_t infiniopGemm(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroyGemmDescriptor(infiniopGemmDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                 \
@@ -204,6 +216,9 @@ infiniopDestroyGemmDescriptor(infiniopGemmDescriptor_t desc) {
 #endif
 #ifdef ENABLE_KUNLUN_API
         DELETE(INFINI_DEVICE_KUNLUN, kunlun);
+#endif
+#ifdef ENABLE_OPENCL_API
+        DELETE(INFINI_DEVICE_OPENCL, opencl);
 #endif
 
     default:

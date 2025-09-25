@@ -10,7 +10,8 @@
 #endif
 
 #ifdef __cplusplus
-#define __C extern "C"
+// #define __C extern "C"  与emmintrin.h产生冲突，建议弃用用该宏
+#define INFINI_EXTERN_C extern "C"
 #include <cstddef>
 #else
 #define __C

@@ -24,7 +24,7 @@
 #include "kunlun/rearrange_kunlun.h"
 #endif
 
-__C infiniStatus_t infiniopCreateRearrangeDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateRearrangeDescriptor(
     infiniopHandle_t handle,
     infiniopRearrangeDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t dst,
@@ -71,7 +71,7 @@ __C infiniStatus_t infiniopCreateRearrangeDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t infiniopRearrange(
+INFINI_EXTERN_C infiniStatus_t infiniopRearrange(
     infiniopRearrangeDescriptor_t desc,
     void *dst,
     const void *src,
@@ -116,7 +116,7 @@ __C infiniStatus_t infiniopRearrange(
 #undef CALCULATE
 }
 
-__C infiniStatus_t infiniopDestroyRearrangeDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopDestroyRearrangeDescriptor(
     infiniopRearrangeDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                      \

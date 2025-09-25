@@ -5,9 +5,9 @@
 typedef void *infinirtOpenclDevice_t;
 typedef void *infinirtOpenclContext_t;
 typedef void *infinirtOpenclStream_t;
-__C __export infiniStatus_t infinirtGetOpenclDevice(infinirtOpenclDevice_t *cl_device);
-__C __export infiniStatus_t infinirtGetOpenclContext(infinirtOpenclContext_t *cl_context);
-__C __export infiniStatus_t infinirtGetOpenclStream(infinirtOpenclStream_t *cl_command_queue);
+INFINI_EXTERN_C __export infiniStatus_t infinirtGetOpenclDevice(infinirtOpenclDevice_t *cl_device);
+INFINI_EXTERN_C __export infiniStatus_t infinirtGetOpenclContext(infinirtOpenclContext_t *cl_context);
+INFINI_EXTERN_C __export infiniStatus_t infinirtGetOpenclStream(infinirtOpenclStream_t *cl_command_queue);
 
 #ifdef __cplusplus
 namespace infinirt::opencl {

@@ -12,7 +12,7 @@
 thread_local infiniDevice_t CURRENT_DEVICE_TYPE = INFINI_DEVICE_CPU;
 thread_local int CURRENT_DEVICE_ID = 0;
 
-__C infiniStatus_t infinirtInit() {
+INFINI_EXTERN_C infiniStatus_t infinirtInit() {
 #if defined(ENABLE_ASCEND_API)
     CHECK_STATUS(infinirt::ascend::init());
 #elif defined(ENABLE_OPENCL_API)
@@ -21,7 +21,7 @@ __C infiniStatus_t infinirtInit() {
     return INFINI_STATUS_SUCCESS;
 }
 
-__C infiniStatus_t infinirtGetAllDeviceCount(int *count_array) {
+INFINI_EXTERN_C infiniStatus_t infinirtGetAllDeviceCount(int *count_array) {
     if (count_array == nullptr) {
         return INFINI_STATUS_NULL_POINTER;
     }
@@ -38,7 +38,7 @@ __C infiniStatus_t infinirtGetAllDeviceCount(int *count_array) {
     return INFINI_STATUS_SUCCESS;
 }
 
-__C infiniStatus_t infinirtGetDevice(infiniDevice_t *device_ptr, int *device_id_ptr) {
+INFINI_EXTERN_C infiniStatus_t infinirtGetDevice(infiniDevice_t *device_ptr, int *device_id_ptr) {
     if (device_ptr == nullptr && device_id_ptr == nullptr) {
         return INFINI_STATUS_NULL_POINTER;
     }
@@ -92,87 +92,87 @@ __C infiniStatus_t infinirtGetDevice(infiniDevice_t *device_ptr, int *device_id_
 
 #define INFINIRT_CALL_DEVICE_API(API, PARAMS) INFINIRT_CALL_DEVICE_API_AND(CURRENT_DEVICE_TYPE, API, PARAMS, )
 
-__C infiniStatus_t infinirtGetDeviceCount(infiniDevice_t device, int *count) {
+INFINI_EXTERN_C infiniStatus_t infinirtGetDeviceCount(infiniDevice_t device, int *count) {
     if (count == nullptr) {
         return INFINI_STATUS_NULL_POINTER;
     }
     INFINIRT_CALL_DEVICE_API_AND(device, getDeviceCount, (count), {});
 }
 
-__C infiniStatus_t infinirtSetDevice(infiniDevice_t device, int device_id) {
+INFINI_EXTERN_C infiniStatus_t infinirtSetDevice(infiniDevice_t device, int device_id) {
     INFINIRT_CALL_DEVICE_API_AND(device, setDevice, (device_id),
                                  { CURRENT_DEVICE_TYPE = device;
                                    CURRENT_DEVICE_ID = device_id; });
 }
 
-__C infiniStatus_t infinirtDeviceSynchronize() {
+INFINI_EXTERN_C infiniStatus_t infinirtDeviceSynchronize() {
     INFINIRT_CALL_DEVICE_API(deviceSynchronize, ());
 }
 
-__C infiniStatus_t infinirtStreamCreate(infinirtStream_t *stream_ptr) {
+INFINI_EXTERN_C infiniStatus_t infinirtStreamCreate(infinirtStream_t *stream_ptr) {
     INFINIRT_CALL_DEVICE_API(streamCreate, (stream_ptr));
 }
 
-__C infiniStatus_t infinirtStreamDestroy(infinirtStream_t stream) {
+INFINI_EXTERN_C infiniStatus_t infinirtStreamDestroy(infinirtStream_t stream) {
     INFINIRT_CALL_DEVICE_API(streamDestroy, (stream));
 }
 
-__C infiniStatus_t infinirtStreamSynchronize(infinirtStream_t stream) {
+INFINI_EXTERN_C infiniStatus_t infinirtStreamSynchronize(infinirtStream_t stream) {
     INFINIRT_CALL_DEVICE_API(streamSynchronize, (stream));
 }
 
-__C infiniStatus_t infinirtStreamWaitEvent(infinirtStream_t stream, infinirtEvent_t event) {
+INFINI_EXTERN_C infiniStatus_t infinirtStreamWaitEvent(infinirtStream_t stream, infinirtEvent_t event) {
     INFINIRT_CALL_DEVICE_API(streamWaitEvent, (stream, event));
 }
 
-__C infiniStatus_t infinirtEventCreate(infinirtEvent_t *event_ptr) {
+INFINI_EXTERN_C infiniStatus_t infinirtEventCreate(infinirtEvent_t *event_ptr) {
     INFINIRT_CALL_DEVICE_API(eventCreate, (event_ptr));
 }
 
-__C infiniStatus_t infinirtEventRecord(infinirtEvent_t event, infinirtStream_t stream) {
+INFINI_EXTERN_C infiniStatus_t infinirtEventRecord(infinirtEvent_t event, infinirtStream_t stream) {
     INFINIRT_CALL_DEVICE_API(eventRecord, (event, stream));
 }
 
-__C infiniStatus_t infinirtEventQuery(infinirtEvent_t event, infinirtEventStatus_t *status_ptr) {
+INFINI_EXTERN_C infiniStatus_t infinirtEventQuery(infinirtEvent_t event, infinirtEventStatus_t *status_ptr) {
     INFINIRT_CALL_DEVICE_API(eventQuery, (event, status_ptr));
 }
 
-__C infiniStatus_t infinirtEventSynchronize(infinirtEvent_t event) {
+INFINI_EXTERN_C infiniStatus_t infinirtEventSynchronize(infinirtEvent_t event) {
     INFINIRT_CALL_DEVICE_API(eventSynchronize, (event));
 }
 
-__C infiniStatus_t infinirtEventDestroy(infinirtEvent_t event) {
+INFINI_EXTERN_C infiniStatus_t infinirtEventDestroy(infinirtEvent_t event) {
     INFINIRT_CALL_DEVICE_API(eventDestroy, (event));
 }
 
-__C infiniStatus_t infinirtMalloc(void **p_ptr, size_t size) {
+INFINI_EXTERN_C infiniStatus_t infinirtMalloc(void **p_ptr, size_t size) {
     INFINIRT_CALL_DEVICE_API(mallocDevice, (p_ptr, size));
 }
 
-__C infiniStatus_t infinirtMallocHost(void **p_ptr, size_t size) {
+INFINI_EXTERN_C infiniStatus_t infinirtMallocHost(void **p_ptr, size_t size) {
     INFINIRT_CALL_DEVICE_API(mallocHost, (p_ptr, size));
 }
 
-__C infiniStatus_t infinirtFree(void *ptr) {
+INFINI_EXTERN_C infiniStatus_t infinirtFree(void *ptr) {
     INFINIRT_CALL_DEVICE_API(freeDevice, (ptr));
 }
 
-__C infiniStatus_t infinirtFreeHost(void *ptr) {
+INFINI_EXTERN_C infiniStatus_t infinirtFreeHost(void *ptr) {
     INFINIRT_CALL_DEVICE_API(freeHost, (ptr));
 }
 
-__C infiniStatus_t infinirtMemcpy(void *dst, const void *src, size_t size, infinirtMemcpyKind_t kind) {
+INFINI_EXTERN_C infiniStatus_t infinirtMemcpy(void *dst, const void *src, size_t size, infinirtMemcpyKind_t kind) {
     INFINIRT_CALL_DEVICE_API(memcpy, (dst, src, size, kind));
 }
 
-__C infiniStatus_t infinirtMemcpyAsync(void *dst, const void *src, size_t size, infinirtMemcpyKind_t kind, infinirtStream_t stream) {
+INFINI_EXTERN_C infiniStatus_t infinirtMemcpyAsync(void *dst, const void *src, size_t size, infinirtMemcpyKind_t kind, infinirtStream_t stream) {
     INFINIRT_CALL_DEVICE_API(memcpyAsync, (dst, src, size, kind, stream));
 }
 
-__C infiniStatus_t infinirtMallocAsync(void **p_ptr, size_t size, infinirtStream_t stream) {
+INFINI_EXTERN_C infiniStatus_t infinirtMallocAsync(void **p_ptr, size_t size, infinirtStream_t stream) {
     INFINIRT_CALL_DEVICE_API(mallocAsync, (p_ptr, size, stream));
 }
 
-__C infiniStatus_t infinirtFreeAsync(void *ptr, infinirtStream_t stream) {
+INFINI_EXTERN_C infiniStatus_t infinirtFreeAsync(void *ptr, infinirtStream_t stream) {
     INFINIRT_CALL_DEVICE_API(freeAsync, (ptr, stream));
 }

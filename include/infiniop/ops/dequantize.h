@@ -5,16 +5,16 @@
 
 typedef struct InfiniopDescriptor *infiniopDequantizeDescriptor_t;
 
-__C __export infiniStatus_t infiniopCreateDequantizeDescriptor(infiniopHandle_t handle,
+INFINI_EXTERN_C __export infiniStatus_t infiniopCreateDequantizeDescriptor(infiniopHandle_t handle,
                                                                infiniopDequantizeDescriptor_t *desc_ptr,
                                                                infiniopTensorDescriptor_t out_desc,
                                                                infiniopTensorDescriptor_t qweight_desc,
                                                                infiniopTensorDescriptor_t scales_desc,
                                                                infiniopTensorDescriptor_t zeros_desc);
 
-__C __export infiniStatus_t infiniopGetDequantizeWorkspaceSize(infiniopDequantizeDescriptor_t desc, size_t *size);
+INFINI_EXTERN_C __export infiniStatus_t infiniopGetDequantizeWorkspaceSize(infiniopDequantizeDescriptor_t desc, size_t *size);
 
-__C __export infiniStatus_t infiniopDequantize(infiniopDequantizeDescriptor_t desc,
+INFINI_EXTERN_C __export infiniStatus_t infiniopDequantize(infiniopDequantizeDescriptor_t desc,
                                                void *workspace,
                                                size_t workspace_size,
                                                void *out,
@@ -26,6 +26,6 @@ __C __export infiniStatus_t infiniopDequantize(infiniopDequantizeDescriptor_t de
                                                size_t thy,
                                                void *stream);
 
-__C __export infiniStatus_t infiniopDestroyDequantizeDescriptor(infiniopDequantizeDescriptor_t desc);
+INFINI_EXTERN_C __export infiniStatus_t infiniopDestroyDequantizeDescriptor(infiniopDequantizeDescriptor_t desc);
 
 #endif

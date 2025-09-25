@@ -5,7 +5,7 @@
 
 typedef struct InfiniopDescriptor *infiniopRoPEv2Descriptor_t;
 
-__C __export infiniStatus_t infiniopCreateRoPEv2Descriptor(
+INFINI_EXTERN_C __export infiniStatus_t infiniopCreateRoPEv2Descriptor(
     infiniopHandle_t handle,
     infiniopRoPEv2Descriptor_t *desc_ptr,
     infiniopTensorDescriptor_t y,
@@ -14,9 +14,9 @@ __C __export infiniStatus_t infiniopCreateRoPEv2Descriptor(
     infiniopTensorDescriptor_t sin_table,
     infiniopTensorDescriptor_t cos_table);
 
-__C __export infiniStatus_t infiniopGetRoPEv2WorkspaceSize(infiniopRoPEv2Descriptor_t desc, size_t *size);
+INFINI_EXTERN_C __export infiniStatus_t infiniopGetRoPEv2WorkspaceSize(infiniopRoPEv2Descriptor_t desc, size_t *size);
 
-__C __export infiniStatus_t infiniopRoPEv2(
+INFINI_EXTERN_C __export infiniStatus_t infiniopRoPEv2(
     infiniopRoPEv2Descriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -27,6 +27,6 @@ __C __export infiniStatus_t infiniopRoPEv2(
     void const *cos_table,
     void *stream);
 
-__C __export infiniStatus_t infiniopDestroyRoPEv2Descriptor(infiniopRoPEv2Descriptor_t desc);
+INFINI_EXTERN_C __export infiniStatus_t infiniopDestroyRoPEv2Descriptor(infiniopRoPEv2Descriptor_t desc);
 
 #endif

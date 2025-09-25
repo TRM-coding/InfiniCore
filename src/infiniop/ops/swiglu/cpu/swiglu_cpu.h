@@ -22,4 +22,4 @@ public:
 } SwiGLUOp;
 } // namespace op::swiglu::cpu
 
-#endif // __SWIGLU_CPU_H__
+#endif

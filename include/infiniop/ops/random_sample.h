@@ -5,17 +5,17 @@
 
 typedef struct InfiniopDescriptor *infiniopRandomSampleDescriptor_t;
 
-__C __export infiniStatus_t infiniopCreateRandomSampleDescriptor(
+INFINI_EXTERN_C  __export infiniStatus_t infiniopCreateRandomSampleDescriptor(
     infiniopHandle_t handle,
     infiniopRandomSampleDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t result,
     infiniopTensorDescriptor_t probs);
 
-__C __export infiniStatus_t infiniopGetRandomSampleWorkspaceSize(
+INFINI_EXTERN_C __export infiniStatus_t infiniopGetRandomSampleWorkspaceSize(
     infiniopRandomSampleDescriptor_t desc,
     size_t *size);
 
-__C __export infiniStatus_t infiniopRandomSample(
+INFINI_EXTERN_C  __export infiniStatus_t infiniopRandomSample(
     infiniopRandomSampleDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -27,7 +27,7 @@ __C __export infiniStatus_t infiniopRandomSample(
     float temperature,
     void *stream);
 
-__C __export infiniStatus_t infiniopDestroyRandomSampleDescriptor(
+INFINI_EXTERN_C __export infiniStatus_t infiniopDestroyRandomSampleDescriptor(
     infiniopRandomSampleDescriptor_t desc);
 
 #endif

@@ -24,7 +24,7 @@
 #include "moore/causal_softmax_moore.h"
 #endif
 
-__C infiniStatus_t infiniopCreateCausalSoftmaxDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateCausalSoftmaxDescriptor(
     infiniopHandle_t handle,
     infiniopCausalSoftmaxDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t y_desc,
@@ -67,7 +67,7 @@ __C infiniStatus_t infiniopCreateCausalSoftmaxDescriptor(
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopGetCausalSoftmaxWorkspaceSize(infiniopCausalSoftmaxDescriptor_t desc, size_t *size) {
+INFINI_EXTERN_C infiniStatus_t infiniopGetCausalSoftmaxWorkspaceSize(infiniopCausalSoftmaxDescriptor_t desc, size_t *size) {
 
 #define GET(CASE, NAMESPACE)                                                                          \
     case CASE:                                                                                        \
@@ -103,7 +103,7 @@ __C infiniStatus_t infiniopGetCausalSoftmaxWorkspaceSize(infiniopCausalSoftmaxDe
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopCausalSoftmax(
+INFINI_EXTERN_C infiniStatus_t infiniopCausalSoftmax(
     infiniopCausalSoftmaxDescriptor_t desc,
     void *workspace, size_t workspace_size,
     void *y,
@@ -144,7 +144,7 @@ __C infiniStatus_t infiniopCausalSoftmax(
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
 
-__C infiniStatus_t infiniopDestroyCausalSoftmaxDescriptor(infiniopCausalSoftmaxDescriptor_t desc) {
+INFINI_EXTERN_C infiniStatus_t infiniopDestroyCausalSoftmaxDescriptor(infiniopCausalSoftmaxDescriptor_t desc) {
 
 #define DESTROY(CASE, NAMESPACE)                                                    \
     case CASE:                                                                      \

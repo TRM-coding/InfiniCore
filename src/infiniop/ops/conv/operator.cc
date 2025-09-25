@@ -9,7 +9,7 @@
 #include "nvidia/conv_nvidia.cuh"
 #endif
 
-__C __export infiniStatus_t infiniopCreateConvDescriptor(infiniopHandle_t handle,
+INFINI_EXTERN_C __export infiniStatus_t infiniopCreateConvDescriptor(infiniopHandle_t handle,
                                                          infiniopConvDescriptor_t *desc_ptr,
                                                          infiniopTensorDescriptor_t y_desc,
                                                          infiniopTensorDescriptor_t x_desc,
@@ -49,7 +49,7 @@ __C __export infiniStatus_t infiniopCreateConvDescriptor(infiniopHandle_t handle
 #undef CREATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopGetConvWorkspaceSize(
     infiniopConvDescriptor_t desc,
     size_t *size) {
@@ -78,7 +78,7 @@ infiniopGetConvWorkspaceSize(
 #undef GET
 }
 
-__C infiniStatus_t infiniopConv(
+INFINI_EXTERN_C infiniStatus_t infiniopConv(
     infiniopConvDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -113,7 +113,7 @@ __C infiniStatus_t infiniopConv(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroyConvDescriptor(infiniopConvDescriptor_t desc) {
 #define DELETE(CASE, NAMESPACE)                                                 \
     case CASE:                                                                  \

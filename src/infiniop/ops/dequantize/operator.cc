@@ -6,7 +6,7 @@
 #include "nvidia/dequantize_w42f16_nvidia.cuh"
 #endif
 
-__C infiniStatus_t infiniopCreateDequantizeDescriptor(
+INFINI_EXTERN_C infiniStatus_t infiniopCreateDequantizeDescriptor(
     infiniopHandle_t handle,
     infiniopDequantizeDescriptor_t *desc_ptr,
     infiniopTensorDescriptor_t out_desc,
@@ -35,7 +35,7 @@ __C infiniStatus_t infiniopCreateDequantizeDescriptor(
 #undef CREATE
 }
 
-__C infiniStatus_t infiniopGetDequantizeWorkspaceSize(infiniopDequantizeDescriptor_t desc,
+INFINI_EXTERN_C infiniStatus_t infiniopGetDequantizeWorkspaceSize(infiniopDequantizeDescriptor_t desc,
                                                       size_t *size) {
 #define GET(CASE, NAMESPACE)                                                                            \
     case CASE:                                                                                          \
@@ -52,7 +52,7 @@ __C infiniStatus_t infiniopGetDequantizeWorkspaceSize(infiniopDequantizeDescript
 #undef GET
 }
 
-__C infiniStatus_t infiniopDequantize(
+INFINI_EXTERN_C infiniStatus_t infiniopDequantize(
     infiniopDequantizeDescriptor_t desc,
     void *workspace,
     size_t workspace_size,
@@ -81,7 +81,7 @@ __C infiniStatus_t infiniopDequantize(
 #undef CALCULATE
 }
 
-__C infiniStatus_t
+INFINI_EXTERN_C infiniStatus_t
 infiniopDestroyDequantizeDescriptor(infiniopDequantizeDescriptor_t desc) {
 
 #define DELETE(CASE, NAMESPACE)                                                       \
