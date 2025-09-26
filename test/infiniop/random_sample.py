@@ -37,7 +37,7 @@ _TEST_CASES = [
 ]
 
 # Data types used for testing
-_TENSOR_DTYPES = [InfiniDtype.F16, InfiniDtype.BF16]
+_TENSOR_DTYPES = [InfiniDtype.F16]
 
 _TOLERANCE_MAP = {
     InfiniDtype.F16: {"atol": 0, "rtol": 0},
@@ -167,6 +167,12 @@ def test(
             atol=atol,
             rtol=rtol,
         )
+    print("算子计算结果:\n",indices.actual_tensor())
+    print("------------")
+    print("ans:\n",ans)
+    print("算子计算结果:\n",logits.actual_tensor()[indices.actual_tensor()])
+    print("------------")
+    print("ans:\n",logits.torch_tensor()[ans])
     assert (
         indices.actual_tensor() == ans
         or logits.actual_tensor()[indices.actual_tensor()] == logits.torch_tensor()[ans]

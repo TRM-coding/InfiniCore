@@ -23,7 +23,9 @@
 #ifdef ENABLE_KUNLUN_API
 #include "kunlun/random_sample_kunlun.h"
 #endif
-
+#ifdef ENABLE_OPENCL_API
+#include "opencl/random_sample_opencl.h"
+#endif
 INFINI_EXTERN_C infiniStatus_t
 infiniopCreateRandomSampleDescriptor(
     infiniopHandle_t handle,
@@ -65,6 +67,10 @@ infiniopCreateRandomSampleDescriptor(
 #ifdef ENABLE_KUNLUN_API
         CREATE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CREATE(INFINI_DEVICE_OPENCL, opencl);
+#endif
+
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -109,6 +115,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopGetRandomSampleWorkspaceSize(
 #endif
 #ifdef ENABLE_KUNLUN_API
         GET(INFINI_DEVICE_KUNLUN, kunlun);
+#endif
+#ifdef ENABLE_OPENCL_API
+        GET(INFINI_DEVICE_OPENCL, opencl);
 #endif
 
     default:
@@ -165,6 +174,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopRandomSample(
 #ifdef ENABLE_KUNLUN_API
         CALCULATE(INFINI_DEVICE_KUNLUN, kunlun);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CALCULATE(INFINI_DEVICE_OPENCL, opencl);
+#endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -206,6 +218,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopDestroyRandomSampleDescriptor(
 #endif
 #ifdef ENABLE_KUNLUN_API
         DELETE(INFINI_DEVICE_KUNLUN, kunlun);
+#endif
+#ifdef ENABLE_OPENCL_API
+        DELETE(INFINI_DEVICE_OPENCL, opencl);
 #endif
 
     default:

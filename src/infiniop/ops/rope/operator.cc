@@ -23,7 +23,9 @@
 #ifdef ENABLE_MOORE_API
 #include "moore/rope_moore.h"
 #endif
-
+#ifdef ENABLE_OPENCL_API
+#include "opencl/rope_opencl.h"
+#endif
 INFINI_EXTERN_C infiniStatus_t infiniopCreateRoPEDescriptor(
     infiniopHandle_t handle,
     infiniopRoPEDescriptor_t *desc_ptr,
@@ -69,6 +71,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopCreateRoPEDescriptor(
 #ifdef ENABLE_CAMBRICON_API
         CREATE(INFINI_DEVICE_CAMBRICON, bang);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CREATE(INFINI_DEVICE_OPENCL,opencl);
+#endif
     }
 
 #undef CREATE
@@ -107,6 +112,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopGetRoPEWorkspaceSize(infiniopRoPEDescript
 #endif
 #ifdef ENABLE_ASCEND_API
         GET(INFINI_DEVICE_ASCEND, ascend);
+#endif
+#ifdef ENABLE_OPENCL_API
+        GET(INFINI_DEVICE_OPENCL,opencl);
 #endif
     }
 
@@ -156,6 +164,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopRoPE(
 #ifdef ENABLE_ASCEND_API
         CALCULATE(INFINI_DEVICE_ASCEND, ascend);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CALCULATE(INFINI_DEVICE_OPENCL,opencl);
+#endif
     }
 
 #undef CALCULATE
@@ -195,6 +206,9 @@ infiniopDestroyRoPEDescriptor(infiniopRoPEDescriptor_t desc) {
 #endif
 #ifdef ENABLE_ASCEND_API
         DELETE(INFINI_DEVICE_ASCEND, ascend);
+#endif
+#ifdef ENABLE_OPENCL_API
+        DELETE(INFINI_DEVICE_OPENCL,opencl);
 #endif
     }
 
