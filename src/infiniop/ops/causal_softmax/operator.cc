@@ -23,7 +23,9 @@
 #ifdef ENABLE_MOORE_API
 #include "moore/causal_softmax_moore.h"
 #endif
-
+#ifdef ENABLE_OPENCL_API
+#include "opencl/causal_softmax_opencl.h"
+#endif
 INFINI_EXTERN_C infiniStatus_t infiniopCreateCausalSoftmaxDescriptor(
     infiniopHandle_t handle,
     infiniopCausalSoftmaxDescriptor_t *desc_ptr,
@@ -63,6 +65,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopCreateCausalSoftmaxDescriptor(
 #ifdef ENABLE_MOORE_API
         CREATE(INFINI_DEVICE_MOORE, moore)
 #endif
+#ifdef ENABLE_OPENCL_API
+        CREATE(INFINI_DEVICE_OPENCL, opencl)
+#endif
     }
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
@@ -98,6 +103,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopGetCausalSoftmaxWorkspaceSize(infiniopCau
 #endif
 #ifdef ENABLE_MOORE_API
         GET(INFINI_DEVICE_MOORE, moore)
+#endif
+#ifdef ENABLE_OPENCL_API
+        GET(INFINI_DEVICE_OPENCL, opencl)
 #endif
     }
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -140,6 +148,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopCausalSoftmax(
 #ifdef ENABLE_MOORE_API
         CALCULATE(INFINI_DEVICE_MOORE, moore)
 #endif
+#ifdef ENABLE_OPENCL_API
+        CALCULATE(INFINI_DEVICE_OPENCL, opencl)
+#endif
     }
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
 }
@@ -175,6 +186,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopDestroyCausalSoftmaxDescriptor(infiniopCa
 #endif
 #ifdef ENABLE_MOORE_API
         DESTROY(INFINI_DEVICE_MOORE, moore)
+#endif
+#ifdef ENABLE_OPENCL_API
+        DESTROY(INFINI_DEVICE_OPENCL, opencl)
 #endif
     }
     return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;

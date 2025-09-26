@@ -1,9 +1,9 @@
 local OPENCL_HEADERS = os.getenv("OPENCL_HEADERS")
 local OPENCL_LIB     = os.getenv("OPENCL_LIB")
 
-if not (OPENCL_HEADERS and OPENCL_LIB) then
-    raise("Please set OPENCL_HEADERS and OPENCL_LIB environment variables")
-end
+-- if not (OPENCL_HEADERS and OPENCL_LIB) then
+--     raise("Please set OPENCL_HEADERS and OPENCL_LIB environment variables")
+-- end
 
 target("infiniop-opencl")
     set_kind("static")

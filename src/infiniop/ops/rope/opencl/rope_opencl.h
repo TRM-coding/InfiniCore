@@ -1,8 +1,8 @@
-#ifndef __INFINIOP_ROPE_OPENCL_H__
-#define __INFINIOP_ROPE_OPENCL_H__
+// #ifndef __INFINIOP_ROPE_OPENCL_H__
+// #define __INFINIOP_ROPE_OPENCL_H__
 
-#include "../rope.h"
+// #include "../rope.h"
 
-DESCRIPTOR(opencl)
+// DESCRIPTOR(opencl)
 
-#endif // __INFINIOP_ROPE_OPENCL_H__
+// #endif // __INFINIOP_ROPE_OPENCL_H__
