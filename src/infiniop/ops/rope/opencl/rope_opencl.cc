@@ -37,7 +37,8 @@ kernel void rope_kernel(
     int const x_stride_nhead,
     int const table_dim,
     int const nhead,
-    int const seqlen
+    int const seqlen,
+    int const is_gpt_j
 )
 {
     int tok = get_global_id(0);
@@ -50,12 +51,11 @@ kernel void rope_kernel(
     size_t x_offset = (size_t)tok * (size_t)x_stride_seqlen + (size_t)h * (size_t)x_stride_nhead;
     size_t y_offset = (size_t)tok * (size_t)y_stride_seqlen + (size_t)h * (size_t)y_stride_nhead;
 
-    int pos0 = 2 * i;
-    int pos1 = pos0 + 1;
+    size_t pos0 = is_gpt_j ? (size_t)(2 * i) : (size_t)i;
+    size_t pos1 = is_gpt_j ? pos0 + 1 : pos0 + (size_t)table_dim;
 
-    // Load inputs
-    T x0T = x[x_offset + (size_t)pos0];
-    T x1T = x[x_offset + (size_t)pos1];
+    T x0T = x[x_offset + pos0];
+    T x1T = x[x_offset + pos1];
 
     size_t pos_id = (size_t)pos_ids[tok];
     size_t table_offset = pos_id * (size_t)table_dim;
@@ -63,7 +63,6 @@ kernel void rope_kernel(
     T sinT = sin_table[table_offset + (size_t)i];
     T cosT = cos_table[table_offset + (size_t)i];
 
-    // Compute in Tcompute to match CPU behavior for low-precision types
     Tcompute x0 = (Tcompute)x0T;
     Tcompute x1 = (Tcompute)x1T;
     Tcompute s  = (Tcompute)sinT;
@@ -72,9 +71,8 @@ kernel void rope_kernel(
     Tcompute y0 = x0 * c - x1 * s;
     Tcompute y1 = x0 * s + x1 * c;
 
-    // Store back
-    y[y_offset + (size_t)pos0] = (T)y0;
-    y[y_offset + (size_t)pos1] = (T)y1;
+    y[y_offset + pos0] = (T)y0;
+    y[y_offset + pos1] = (T)y1;
 }
 )CLC";
 
@@ -260,11 +258,13 @@ infiniStatus_t Descriptor::create(
     infiniopTensorDescriptor_t x_desc,
     infiniopTensorDescriptor_t pos_desc,
     infiniopTensorDescriptor_t sin_desc,
-    infiniopTensorDescriptor_t cos_desc) {
+    infiniopTensorDescriptor_t cos_desc,
+    infiniopRoPEAlgo_t algo
+) {
 
     auto handle = reinterpret_cast<device::opencl::Handle *>(handle_);
 
-    auto info = RoPEInfo::createRoPEInfo(y_desc, x_desc, pos_desc, sin_desc, cos_desc);
+    auto info = RoPEInfo::createRoPEInfo(y_desc, x_desc, pos_desc, sin_desc, cos_desc,algo);
     CHECK_RESULT(info);
 
     // Create descriptor
@@ -404,6 +404,7 @@ infiniStatus_t launchKernel(
     cl_int cl_table_dim = static_cast<cl_int>(table_dim);
     cl_int cl_nhead = static_cast<cl_int>(nhead);
     cl_int cl_seqlen = static_cast<cl_int>(seqlen);
+    cl_int cl_is_gpt_j = info.algo == infiniopRoPEAlgo_t::INFINIOP_ROPE_ALGO_GPT_J ? 1 : 0;
 
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_y_stride_seqlen);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_x_stride_seqlen);
@@ -412,7 +413,7 @@ infiniStatus_t launchKernel(
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_table_dim);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_nhead);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_seqlen);
-
+    clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_is_gpt_j);
     // 设置全局工作尺寸: (seqlen, nhead, table_dim)
     size_t global_work_size[3] = {(size_t)seqlen, (size_t)nhead, (size_t)table_dim};
 
