@@ -1,5 +1,5 @@
-#ifndef __DEQUANTIZE_H__
-#define __DEQUANTIZE_H__
+#ifndef __DEQUANTIZE_AWQ_H__
+#define __DEQUANTIZE_AWQ_H__
 
 #include "../../../utils.h"
 #include "../../operator.h"
@@ -8,17 +8,17 @@
 
 #define DESCRIPTOR(NAMESPACE)                                    \
                                                                  \
-    namespace op::dequantize::NAMESPACE {                        \
+    namespace op::dequantize_awq::NAMESPACE {                    \
     class Descriptor final : public InfiniopDescriptor {         \
         struct Opaque;                                           \
         Opaque *_opaque;                                         \
-        DequantizeInfo _info;                                    \
+        DequantizeAWQInfo _info;                                 \
         size_t _workspace_size;                                  \
                                                                  \
         Descriptor(                                              \
             size_t workspace_size_,                              \
             Opaque *opaque,                                      \
-            DequantizeInfo info,                                 \
+            DequantizeAWQInfo info,                              \
             infiniDevice_t device_type,                          \
             int device_id)                                       \
             : InfiniopDescriptor{device_type, device_id},        \
@@ -46,10 +46,8 @@
             const void *qweight,                                 \
             const void *scales,                                  \
             const void *zeros,                                   \
-            int split_k_iters,                                   \
-            int thx,                                             \
-            int thy,                                             \
             void *stream) const;                                 \
     };                                                           \
     }
-#endif
+
+#endif //__DEQUANTIZE_AWQ_H__
