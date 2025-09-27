@@ -23,7 +23,9 @@
 #ifdef ENABLE_MOORE_API
 #include "moore/swiglu_moore.h"
 #endif
-
+#ifdef ENABLE_OPENCL_API
+#include "opencl/swiglu_opencl.h"
+#endif
 INFINI_EXTERN_C infiniStatus_t infiniopCreateSwiGLUDescriptor(
     infiniopHandle_t handle,
     infiniopSwiGLUDescriptor_t *desc_ptr,
@@ -66,6 +68,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopCreateSwiGLUDescriptor(
 #ifdef ENABLE_MOORE_API
         CREATE(INFINI_DEVICE_MOORE, moore);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CREATE(INFINI_DEVICE_OPENCL, opencl);
+#endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -105,6 +110,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopGetSwiGLUWorkspaceSize(infiniopSwiGLUDesc
 #endif
 #ifdef ENABLE_MOORE_API
         GET(INFINI_DEVICE_MOORE, moore);
+#endif
+#ifdef ENABLE_OPENCL_API
+        GET(INFINI_DEVICE_OPENCL, opencl);
 #endif
     }
 
@@ -153,6 +161,9 @@ INFINI_EXTERN_C infiniStatus_t infiniopSwiGLU(
 #ifdef ENABLE_MOORE_API
         CALCULATE(INFINI_DEVICE_MOORE, moore);
 #endif
+#ifdef ENABLE_OPENCL_API
+        CALCULATE(INFINI_DEVICE_OPENCL, opencl);
+#endif
 
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -194,6 +205,9 @@ infiniopDestroySwiGLUDescriptor(infiniopSwiGLUDescriptor_t desc) {
 #endif
 #ifdef ENABLE_MOORE_API
         DELETE(INFINI_DEVICE_MOORE, moore);
+#endif
+#ifdef ENABLE_OPENCL_API
+        DELETE(INFINI_DEVICE_OPENCL, opencl);
 #endif
 
     default:

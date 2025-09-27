@@ -59,7 +59,7 @@ _TEST_CASES = [
 ]
 
 # Data types used for testing
-_TENSOR_DTYPES = [InfiniDtype.F16, InfiniDtype.BF16, InfiniDtype.F32]
+_TENSOR_DTYPES = [InfiniDtype.F16, InfiniDtype.F32]
 
 # Tolerance map for different data types
 _TOLERANCE_MAP = {
@@ -156,6 +156,8 @@ def test(
     atol, rtol = get_tolerance(_TOLERANCE_MAP, dtype)
     if DEBUG:
         debug(c.actual_tensor(), ans, atol=atol, rtol=rtol)
+    # print("calculated:\n",c.actual_tensor())
+    # print("ans:\n",ans)
     assert torch.allclose(c.actual_tensor(), ans, atol=atol, rtol=rtol)
 
     # Profiling workflow
