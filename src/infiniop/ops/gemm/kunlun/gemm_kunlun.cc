@@ -102,6 +102,8 @@ infiniStatus_t Descriptor::calculate(
                     CUBLAS_GEMM_DEFAULT_TENSOR_OP));
             return INFINI_STATUS_SUCCESS;
         }));
+
+    xpu_wait(stream);
     return INFINI_STATUS_SUCCESS;
 }
 

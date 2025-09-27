@@ -75,6 +75,7 @@ _TEST_CASES = [
         row_major_strides((3, 4, 50, 50, 5, 7)),  # x_stride
         column_major_strides((3, 4, 50, 50, 5, 7)),  # y_stride
     ),
+    ((15, 10752), (0, 1), (10752, 1)),
 ]
 
 # Data types used for testing
@@ -94,7 +95,7 @@ NUM_ITERATIONS = 1000
 
 def rearrange_torch(y, x, x_shape, y_stride):
     y.set_(y.untyped_storage(), 0, x_shape, y_stride)
-    y[:] = x.view_as(y)
+    y.copy_(x.expand_as(y))
 
 
 def test(

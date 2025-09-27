@@ -120,13 +120,13 @@ Descriptor::calculate(
         switch (_info.dt_p) {
             case INFINI_DTYPE_F16:                
                 LAUNCH_KERNEL(half, int32_t);
-                return INFINI_STATUS_SUCCESS;
+                break;
             case INFINI_DTYPE_BF16:                
                 LAUNCH_KERNEL(bfloat16_t, int32_t);
-                return INFINI_STATUS_SUCCESS;
+                break;
             case INFINI_DTYPE_F32:                
                 LAUNCH_KERNEL(float, int32_t);
-                return INFINI_STATUS_SUCCESS;
+                break;
             default:
                 return INFINI_STATUS_BAD_TENSOR_DTYPE;
         }
@@ -135,13 +135,13 @@ Descriptor::calculate(
         switch (_info.dt_p) {
             case INFINI_DTYPE_F16:
                 LAUNCH_KERNEL(half, int64_t);
-                return INFINI_STATUS_SUCCESS;
+                break;
             case INFINI_DTYPE_BF16:
                 LAUNCH_KERNEL(bfloat16_t, int64_t);
-                return INFINI_STATUS_SUCCESS;
+                break;
             case INFINI_DTYPE_F32:
                 LAUNCH_KERNEL(float, int64_t);
-                return INFINI_STATUS_SUCCESS;
+                break;
             default:
                 return INFINI_STATUS_BAD_TENSOR_DTYPE;
         }

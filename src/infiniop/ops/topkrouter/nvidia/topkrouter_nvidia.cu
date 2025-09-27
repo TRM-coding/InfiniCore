@@ -1,3 +1,5 @@
+#ifdef ENABLE_NVIDIA_API
+
 #include "../../../devices/nvidia/nvidia_common.cuh"
 #include "../../../devices/nvidia/nvidia_kernel_common.cuh"
 #include "../cuda/kernel.cuh"
@@ -86,3 +88,5 @@ infiniStatus_t Descriptor::calculate(
     return INFINI_STATUS_SUCCESS;
 }
 } // namespace op::topkrouter::nvidia
+
+#endif

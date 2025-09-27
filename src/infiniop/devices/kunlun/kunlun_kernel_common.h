@@ -12,7 +12,7 @@
 
 namespace device::kunlun::kernel {
 
-#define SM_SIZE 10240
+#define SM_SIZE 40960
 
 /**
  * @brief Define ptrdiff_t and size_t for kunlun xpu
@@ -103,27 +103,6 @@ inline __device__ T atomicMax(__shared_ptr__ T *ptr, T value) {
     mfence_sm();
     ticket_unlock_mix();
     return old;
-}
-
-/**
- * @brief Get index of broadcasted input
- * flat_index: flatten index of output tensor
- * ndim: dim of output tensor
- * broadcasted_strides: strides of output tensor
- * target_strides: strides of input tensor
- */
-inline __device__ int indexToReducedOffset(
-    int flat_index,                        // output flatten index
-    int ndim,                              // output dims
-    const _ptrdiff_t *broadcasted_strides, // output strides
-    const _ptrdiff_t *target_strides) {    // strides of inputs
-
-    int res = 0;
-    for (int i = 0; i < ndim; ++i) {
-        res += flat_index / broadcasted_strides[i].value * target_strides[i].value;
-        flat_index %= broadcasted_strides[i].value;
-    }
-    return res;
 }
 
 /**

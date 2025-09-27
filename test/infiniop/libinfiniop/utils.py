@@ -1,6 +1,7 @@
 from typing import Sequence
 import torch
 import ctypes
+import numpy as np
 from .datatypes import *
 from .devices import *
 from .liboperators import infiniopTensorDescriptor_t, LIBINFINIOP, infiniopHandle_t
@@ -93,6 +94,12 @@ class TestTensor(CTensor):
             self._torch_tensor = set_tensor.to(to_torch_dtype(dt)).to(
                 torch_device_map[device]
             )
+        elif mode == "binary":
+            assert set_tensor is not None
+            assert torch_shape == list(set_tensor.shape)
+            self._torch_tensor = set_tensor.to(to_torch_dtype(dt)).to(
+                torch_device_map[device]
+            )
         else:
             raise ValueError("Unsupported mode")
 
@@ -101,7 +108,7 @@ class TestTensor(CTensor):
         if bias is not None:
             self._torch_tensor += bias
 
-        if strides is not None:
+        if strides is not None and mode != "binary":
             self._data_tensor = rearrange_tensor(self._torch_tensor, torch_strides)
         else:
             self._data_tensor = self._torch_tensor.clone()
@@ -119,6 +126,14 @@ class TestTensor(CTensor):
 
     def is_broadcast(self):
         return self.strides is not None and 0 in self.strides
+    
+    @staticmethod
+    def from_binary(binary_file, shape, strides, dt: InfiniDtype, device: InfiniDeviceEnum):
+        data = np.fromfile(binary_file, dtype=to_numpy_dtype(dt))
+        base = torch.from_numpy(data)
+        torch_tensor = torch.as_strided(base, size=shape, stride=strides).to(torch_device_map[device])
+        return TestTensor(
+            shape, strides, dt, device, mode="binary", set_tensor=torch_tensor)
 
     @staticmethod
     def from_torch(torch_tensor, dt: InfiniDtype, device: InfiniDeviceEnum):
@@ -158,6 +173,38 @@ def to_torch_dtype(dt: InfiniDtype, compatability_mode=False):
         return torch.int64 if compatability_mode else torch.uint64
     else:
         raise ValueError("Unsupported data type")
+
+
+def to_numpy_dtype(dt: InfiniDtype, compatability_mode=False):
+    if dt == InfiniDtype.I8:
+        return np.int8
+    elif dt == InfiniDtype.I16:
+        return np.int16
+    elif dt == InfiniDtype.I32:
+        return np.int32
+    elif dt == InfiniDtype.I64:
+        return np.int64
+    elif dt == InfiniDtype.U8:
+        return np.uint8
+    elif dt == InfiniDtype.U16:
+        return np.uint16 if not compatability_mode else np.int16
+    elif dt == InfiniDtype.U32:
+        return np.uint32 if not compatability_mode else np.int32
+    elif dt == InfiniDtype.U64:
+        return np.uint64 if not compatability_mode else np.int64
+    elif dt == InfiniDtype.F16:
+        return np.float16
+    elif dt == InfiniDtype.BF16:
+        # numpy 1.20+ 有 float32 的模拟 bf16 方案: np.dtype("bfloat16")
+        # 但很多环境里没直接支持，通常要 fallback 到 float32
+        return np.dtype("bfloat16") if not compatability_mode else np.float32
+    elif dt == InfiniDtype.F32:
+        return np.float32
+    elif dt == InfiniDtype.F64:
+        return np.float64
+    else:
+        raise ValueError("Unsupported data type")
+
 
 
 class TestWorkspace:
@@ -433,6 +480,9 @@ def print_discrepancy(
 
     is_terminal = sys.stdout.isatty()
 
+    actual = actual.to("cpu")
+    expected = expected.to("cpu")
+    
     actual_isnan = torch.isnan(actual)
     expected_isnan = torch.isnan(expected)
 
