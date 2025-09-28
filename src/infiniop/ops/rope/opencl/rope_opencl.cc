@@ -428,9 +428,24 @@ infiniStatus_t launchKernel(
 
     // 如果使用了 SVM 内存进行数据传输，执行数据传输
     if (y_svm) {
-        // 注意：最后一维长度为 2 * table_dim
-        size_t num_elems = (seqlen - 1) * y_stride_seqlen + (nhead - 1) * y_stride_nhead + (2 * table_dim - 1) + 1;
+        size_t num_elems =
+            (seqlen - 1) * y_stride_seqlen +
+            (nhead - 1) * y_stride_nhead +
+            (2 * table_dim - 1) + 1;
         infinirtMemcpy(y, y_svm, num_elems * dtypeSize(dtype), INFINIRT_MEMCPY_D2H);
+        infinirtFree(y_svm);
+    }
+    if (x_svm) {
+        infinirtFree(x_svm);
+    }
+    if (pos_ids_svm) {
+        infinirtFree(pos_ids_svm);
+    }
+    if (sin_table_svm) {
+        infinirtFree(sin_table_svm);
+    }
+    if (cos_table_svm) {
+        infinirtFree(cos_table_svm);
     }
 
     // 释放资源
@@ -448,7 +463,7 @@ infiniStatus_t Descriptor::calculate(
     const void *sin_table,
     const void *cos_table,
     void *stream) const {
-
+    // std::cout<<"ROPE Running"<<std::endl;
     void *device;
     void *context;
 

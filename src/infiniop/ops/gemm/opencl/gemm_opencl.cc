@@ -324,6 +324,7 @@ infiniStatus_t launchKernel(
     clerr = clSetKernelArgSVMPointer(kernel,arg_idx++,c);
     if(clerr != CL_SUCCESS)
     {
+        std::cout<<clerr<<std::endl;
         size_t num_elems =
             (batch_size - 1) * c_batch_stride +
             (c_row_size - 1) * c_row_stride +
@@ -347,6 +348,7 @@ infiniStatus_t launchKernel(
     clerr = clSetKernelArgSVMPointer(kernel,arg_idx++,a);
     if(clerr != CL_SUCCESS)
     {
+        std::cout<<clerr<<std::endl;
         size_t num_elems =
             (batch_size - 1) * a_batch_stride +
             (a_row_size - 1) * a_row_stride +
@@ -369,6 +371,7 @@ infiniStatus_t launchKernel(
     clerr = clSetKernelArgSVMPointer(kernel,arg_idx++,b);
     if(clerr != CL_SUCCESS)
     {
+        std::cout<<clerr<<std::endl;
         size_t num_elems =
             (batch_size - 1) * b_batch_stride +
             (b_row_size - 1) * b_row_stride +
@@ -413,11 +416,18 @@ infiniStatus_t launchKernel(
             (c_row_size - 1) * c_row_stride +
             (c_col_size - 1) * c_col_stride + 1;
         infinirtMemcpy(c,c_svm,num_elems*dtypeSize(dtype),INFINIRT_MEMCPY_D2H);
+        infinirtFree(c_svm);
     }
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
-    
+    if (a_svm) {
+        infinirtFree(a_svm);
+    }
+    if (b_svm) {
+        infinirtFree(b_svm);
+    }
+    // std::cout<<"GEMM Runing Finished"<<std::endl;
     return INFINI_STATUS_SUCCESS;
 }
 
@@ -432,7 +442,7 @@ infiniStatus_t Descriptor::calculate(
     if (_info.is_transed) {
         std::swap(a, b);
     }
-    
+    // std::cout<<"GEMM Running"<<std::endl;
     void *device;
     void *context;
 

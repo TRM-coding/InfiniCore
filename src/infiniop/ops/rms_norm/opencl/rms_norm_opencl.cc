@@ -314,8 +314,10 @@ infiniStatus_t launchKernel(
 
     int arg_idx = 0;
     void *y_svm = NULL;
+    void *x_svm = NULL;
+    void *w_svm = NULL;
     clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, y);
-    if (clerr != CL_SUCCESS) { // for python test
+    if (clerr != CL_SUCCESS) {
         infinirtMalloc(&y_svm, ((batch_size - 1) * stride_y_batch + (nhead - 1) * stride_y_nhead + dim) * dtypeSize(atype));
         infinirtMemcpy(y_svm, y, ((batch_size - 1) * stride_y_batch + (nhead - 1) * stride_y_nhead + dim) * dtypeSize(atype), INFINIRT_MEMCPY_H2D);
         arg_idx -= 1;
@@ -326,8 +328,7 @@ infiniStatus_t launchKernel(
     cl_int s_y_nhead = static_cast<cl_int>(stride_y_nhead);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &s_y_nhead);
     clerr |= clSetKernelArgSVMPointer(kernel, arg_idx++, x);
-    if (clerr != CL_SUCCESS) { // for python test
-        void *x_svm = NULL;
+    if (clerr != CL_SUCCESS) {
         infinirtMalloc(&x_svm, ((batch_size - 1) * stride_x_batch + (nhead - 1) * stride_x_nhead + dim) * dtypeSize(atype));
         infinirtMemcpy(x_svm, x, ((batch_size - 1) * stride_x_batch + (nhead - 1) * stride_x_nhead + dim) * dtypeSize(atype), INFINIRT_MEMCPY_H2D);
         arg_idx -= 1;
@@ -339,8 +340,7 @@ infiniStatus_t launchKernel(
     cl_int s_x_nhead = static_cast<cl_int>(stride_x_nhead);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &s_x_nhead);
     clerr |= clSetKernelArgSVMPointer(kernel, arg_idx++, w);
-    if (clerr != CL_SUCCESS) { // for python test
-        void *w_svm = NULL;
+    if (clerr != CL_SUCCESS) {
         infinirtMalloc(&w_svm, dim * dtypeSize(wtype));
         infinirtMemcpy(w_svm, w, dim * dtypeSize(wtype), INFINIRT_MEMCPY_H2D);
         arg_idx -= 1;
@@ -360,8 +360,15 @@ infiniStatus_t launchKernel(
         clReleaseProgram(program);
         return INFINI_STATUS_INTERNAL_ERROR;
     }
-    if (y_svm) { // for python test
+    if (y_svm) {
         infinirtMemcpy(y, y_svm, ((batch_size - 1) * stride_y_batch + (nhead - 1) * stride_y_nhead + dim) * dtypeSize(atype), INFINIRT_MEMCPY_D2H);
+        infinirtFree(y_svm);
+    }
+    if (x_svm) {
+        infinirtFree(x_svm);
+    }
+    if (w_svm) {
+        infinirtFree(w_svm);
     }
 
     // cleanup program/kernel
@@ -375,6 +382,7 @@ infiniStatus_t Descriptor::calculate(
     void *workspace, size_t workspace_size,
     void *y, const void *x, const void *w,
     void *stream) const {
+    // std::cout<<"RMS_NORM Running"<<std::endl;
 
     if (workspace_size < _workspace_size) {
         return INFINI_STATUS_INSUFFICIENT_WORKSPACE;
@@ -401,35 +409,39 @@ infiniStatus_t Descriptor::calculate(
     auto err_c = clGetContextInfo(context_cl, CL_CONTEXT_NUM_DEVICES, sizeof(num_devices), &num_devices, nullptr);
     if (err_c != CL_SUCCESS) {
         std::cerr << "Error getting context device count!" << std::endl;
-    } else {
-        std::cout << "Number of Devices in Context: " << num_devices << std::endl;
-    }
+    } 
+    // else {
+    //     std::cout << "Number of Devices in Context: " << num_devices << std::endl;
+    // }
 
     // 获取上下文中的设备列表
     cl_device_id *devices_in_context = new cl_device_id[num_devices];
     err_c = clGetContextInfo(context_cl, CL_CONTEXT_DEVICES, num_devices * sizeof(cl_device_id), devices_in_context, nullptr);
     if (err_c != CL_SUCCESS) {
         std::cerr << "Error getting devices in context!" << std::endl;
-    } else {
-        std::cout << "Devices in Context:" << std::endl;
-        for (cl_uint i = 0; i < num_devices; ++i) {
-            char device_name[1024];
-            err_c = clGetDeviceInfo(devices_in_context[i], CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
-            if (err_c != CL_SUCCESS) {
-                std::cerr << "Error getting device name!" << std::endl;
-            } else {
-                std::cout << "Device " << i + 1 << ": " << device_name << std::endl;
-            }
-        }
-    }
+    } 
+    // else {
+    //     // std::cout << "Devices in Context:" << std::endl;
+    //     for (cl_uint i = 0; i < num_devices; ++i) {
+    //         char device_name[1024];
+    //         err_c = clGetDeviceInfo(devices_in_context[i], CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
+    //         if (err_c != CL_SUCCESS) {
+    //             std::cerr << "Error getting device name!" << std::endl;
+    //         } 
+    //         // else {
+    //         //     std::cout << "Device " << i + 1 << ": " << device_name << std::endl;
+    //         // }
+    //     }
+    // }
 
     char device_name[1024];
     auto err = clGetDeviceInfo(device_cl, CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Error getting device name!" << std::endl;
-    } else {
-        std::cout << "Device Name: " << device_name << std::endl;
-    }
+    } 
+    // else {
+    //     std::cout << "Device Name: " << device_name << std::endl;
+    // }
 
     cl_context clcontext = static_cast<cl_context>(context);
     cl_device_id cldevice = static_cast<cl_device_id>(device);

@@ -267,13 +267,58 @@ infiniStatus_t launchKernel(
     cl_kernel kernel = clCreateKernel(program, "rearrange_kernel", &clerr);
     int arg_idx = 0;
 
+
+    auto copyHostToSvm = [&](void *svm_ptr, const void *host_ptr, size_t bytes) -> infiniStatus_t {
+        if (bytes == 0) {
+            return INFINI_STATUS_SUCCESS;
+        }
+        cl_int err = clEnqueueSVMMap(cl_queue, CL_TRUE, CL_MAP_WRITE, svm_ptr, bytes, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+        std::memcpy(svm_ptr, host_ptr, bytes);
+        err = clEnqueueSVMUnmap(cl_queue, svm_ptr, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+        err = clFinish(cl_queue);
+        if (err != CL_SUCCESS) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+        return INFINI_STATUS_SUCCESS;
+    };
+    auto copySvmToHost = [&](void *host_ptr, void *svm_ptr, size_t bytes) -> infiniStatus_t {
+        if (bytes == 0) {
+            return INFINI_STATUS_SUCCESS;
+        }
+        cl_int err = clEnqueueSVMMap(cl_queue, CL_TRUE, CL_MAP_READ, svm_ptr, bytes, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+        std::memcpy(host_ptr, svm_ptr, bytes);
+        err = clEnqueueSVMUnmap(cl_queue, svm_ptr, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+        err = clFinish(cl_queue);
+        if (err != CL_SUCCESS) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+        return INFINI_STATUS_SUCCESS;
+    };
+
     // y 参数
     void *y_svm = NULL;
     clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, y);
     if (clerr != CL_SUCCESS) {
         size_t num_bytes = count_ * unit_;
         infinirtMalloc(&y_svm, num_bytes);
-        infinirtMemcpy(y_svm, y, num_bytes, INFINIRT_MEMCPY_H2D);
+        if (copyHostToSvm(y_svm, y, num_bytes) != INFINI_STATUS_SUCCESS) {
+            if (y_svm) infinirtFree(y_svm);
+            clReleaseKernel(kernel);
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
         arg_idx -= 1;
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, y_svm);
     }
@@ -284,7 +329,13 @@ infiniStatus_t launchKernel(
     if (clerr != CL_SUCCESS) {
         size_t num_bytes = count_ * unit_;
         infinirtMalloc(&x_svm, num_bytes);
-        infinirtMemcpy(x_svm, x, num_bytes, INFINIRT_MEMCPY_H2D);
+        if (copyHostToSvm(x_svm, x, num_bytes) != INFINI_STATUS_SUCCESS) {
+            if (y_svm) infinirtFree(y_svm);
+            if (x_svm) infinirtFree(x_svm);
+            clReleaseKernel(kernel);
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
         arg_idx -= 1;
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, x_svm);
     }
@@ -299,33 +350,57 @@ infiniStatus_t launchKernel(
 
     // idx_strides 参数
     void *idx_strides_svm = NULL;
-    clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, (void*)idx_strides_);
+    clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, idx_strides_);
     if (clerr != CL_SUCCESS) {
         size_t num_bytes = ndim_ * sizeof(cl_long);
         infinirtMalloc(&idx_strides_svm, num_bytes);
-        infinirtMemcpy(idx_strides_svm, idx_strides_, num_bytes, INFINIRT_MEMCPY_H2D);
+        if (copyHostToSvm(idx_strides_svm, idx_strides_, num_bytes) != INFINI_STATUS_SUCCESS) {
+            if (y_svm) infinirtFree(y_svm);
+            if (x_svm) infinirtFree(x_svm);
+            if (idx_strides_svm) infinirtFree(idx_strides_svm);
+            clReleaseKernel(kernel);
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
         arg_idx -= 1;
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, idx_strides_svm);
     }
 
     // dst_strides 参数
     void *dst_strides_svm = NULL;
-    clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, (void*)dst_strides_);
+    clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, dst_strides_);
     if (clerr != CL_SUCCESS) {
         size_t num_bytes = ndim_ * sizeof(cl_long);
         infinirtMalloc(&dst_strides_svm, num_bytes);
-        infinirtMemcpy(dst_strides_svm, dst_strides_, num_bytes, INFINIRT_MEMCPY_H2D);
+        if (copyHostToSvm(dst_strides_svm, dst_strides_, num_bytes) != INFINI_STATUS_SUCCESS) {
+            if (y_svm) infinirtFree(y_svm);
+            if (x_svm) infinirtFree(x_svm);
+            if (idx_strides_svm) infinirtFree(idx_strides_svm);
+            if (dst_strides_svm) infinirtFree(dst_strides_svm);
+            clReleaseKernel(kernel);
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
         arg_idx -= 1;
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, dst_strides_svm);
     }
 
     // src_strides 参数
     void *src_strides_svm = NULL;
-    clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, (void*)src_strides_);
+    clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, src_strides_);
     if (clerr != CL_SUCCESS) {
         size_t num_bytes = ndim_ * sizeof(cl_long);
         infinirtMalloc(&src_strides_svm, num_bytes);
-        infinirtMemcpy(src_strides_svm, src_strides_, num_bytes, INFINIRT_MEMCPY_H2D);
+        if (copyHostToSvm(src_strides_svm, src_strides_, num_bytes) != INFINI_STATUS_SUCCESS) {
+            if (y_svm) infinirtFree(y_svm);
+            if (x_svm) infinirtFree(x_svm);
+            if (idx_strides_svm) infinirtFree(idx_strides_svm);
+            if (dst_strides_svm) infinirtFree(dst_strides_svm);
+            if (src_strides_svm) infinirtFree(src_strides_svm);
+            clReleaseKernel(kernel);
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
         arg_idx -= 1;
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, src_strides_svm);
     }
@@ -335,21 +410,28 @@ infiniStatus_t launchKernel(
 
     // 启动 OpenCL kernel
     clerr = clEnqueueNDRangeKernel(cl_queue, kernel, 1, nullptr, global_work_size, nullptr, 0, nullptr, nullptr);
-    if (clerr != CL_SUCCESS) {
-        fprintf(stderr, "[OpenCL] clEnqueueNDRangeKernel failed: %s (%d)\n", clErrorString(clerr), clerr);
-        clReleaseKernel(kernel);
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
+    if (y_svm) {
+        size_t num_bytes = count_ * unit_;
+        if (copySvmToHost(y, y_svm, num_bytes) != INFINI_STATUS_SUCCESS) {
+            if (y_svm) infinirtFree(y_svm);
+            if (x_svm) infinirtFree(x_svm);
+            if (idx_strides_svm) infinirtFree(idx_strides_svm);
+            if (dst_strides_svm) infinirtFree(dst_strides_svm);
+            if (src_strides_svm) infinirtFree(src_strides_svm);
+            clReleaseKernel(kernel);
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
     }
 
     // 等待执行完成
-    clFinish(cl_queue);
+    
 
     // 如果使用了 SVM 内存进行数据传输，执行数据传输
-    if (y_svm) {
-        size_t num_bytes = count_ * unit_;
-        infinirtMemcpy(y, y_svm, num_bytes, INFINIRT_MEMCPY_D2H);
-    }
+    // if (y_svm) {
+    //     size_t num_bytes = count_ * unit_;
+    //     infinirtMemcpy(y, y_svm, num_bytes, INFINIRT_MEMCPY_D2H);
+    // }
 
     // 释放临时资源
     if (y_svm) infinirtFree(y_svm);
@@ -369,7 +451,7 @@ infiniStatus_t Descriptor::calculate(
     void *y,
     const void *x,
     void *stream) const {
-
+    // std::cout<<"REARRANGE Running"<<std::endl;
     void *device;
     void *context;
 

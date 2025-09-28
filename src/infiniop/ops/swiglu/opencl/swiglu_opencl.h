@@ -15,11 +15,13 @@ class Descriptor final : public InfiniopDescriptor {
         op::elementwise::ElementwiseInfo meta,
         infiniDtype_t dtype,
         Opaque *opaque,
+        size_t workspaceSize,
         infiniDevice_t device_type,
         int device_id)
         : InfiniopDescriptor{device_type, device_id},
           dtype(dtype),
           _opaque(opaque),
+          _workspace_size(workspaceSize),
           _info(meta) {}
 
 public:

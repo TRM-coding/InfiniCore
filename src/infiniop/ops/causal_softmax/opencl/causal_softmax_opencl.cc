@@ -349,6 +349,11 @@ infiniStatus_t launchKernel(
             (seq_number - 1) * y_stride_i +
             (total_seq_len - 1) * y_stride_j + 1;
         infinirtMemcpy(y,y_svm,num_elems*dtypeSize(dtype),INFINIRT_MEMCPY_D2H);
+        infinirtFree(y_svm);
+    }
+    if (x_svm)
+    {
+        infinirtFree(x_svm);
     }
 
     clReleaseKernel(kernel);
@@ -362,7 +367,7 @@ infiniStatus_t Descriptor::calculate(
     void *y,
     const void *x,
     void *stream) const {
-
+    // std::cout<<"CAUSAL_SOFTMAX Running"<<std::endl;
     // 获取opencl后端设备
     void *device;
     void *context;

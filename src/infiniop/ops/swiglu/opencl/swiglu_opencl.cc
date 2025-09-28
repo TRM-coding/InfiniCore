@@ -282,6 +282,7 @@ infiniStatus_t Descriptor::create(
         info_result.take(),
         dtype,
         nullptr,
+        0,
         handle->device,
         handle->device_id);
 
@@ -481,7 +482,8 @@ infiniStatus_t Descriptor::calculate(
     void *output,
     std::vector<const void *> inputs,
     void *stream) const {
-
+    
+    // std::cout<<"SWIGLU Running"<<std::endl;
     void *device;
     void *context;
 

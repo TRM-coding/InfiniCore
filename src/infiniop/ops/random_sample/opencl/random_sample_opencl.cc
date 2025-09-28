@@ -434,6 +434,10 @@ infiniStatus_t launchKernel(
     if (result_svm) {
         size_t num_elems = 1;
         infinirtMemcpy(result, result_svm, num_elems * dtypeSize(dtype_out), INFINIRT_MEMCPY_D2H);
+        infinirtFree(result_svm);
+    }
+    if (probs_svm) {
+        infinirtFree(probs_svm);
     }
 
     std::cout << "excute finished" << std::endl;
@@ -454,8 +458,8 @@ infiniStatus_t Descriptor::calculate(
     int topk,
     float temperature,
     void *stream) const {
-
-    std::cout<<"start calculate"<<std::endl;
+    
+    // std::cout<<"RANDOM_SAMPLE Running"<<std::endl;
     void *device;
     void *context;
 
