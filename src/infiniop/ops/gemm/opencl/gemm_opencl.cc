@@ -13,6 +13,7 @@
 static const char *GemmKernelSource = R"CLC(
 #define CL_TARGET_OPENCL_VERSION 200
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
+#pragma OPENCL EXTENSION cl_khr_subgroups : enable
 
 #ifndef T
 #define T float
@@ -22,6 +23,9 @@ static const char *GemmKernelSource = R"CLC(
 #define Tcompute float
 #endif
 
+// Sub-group dot-product GEMM:
+// - One work-group computes one C(i, j, b)
+// - A single sub-group inside the work-group performs the dot product across K
 kernel void gemm_kernel(
     global T *C,
     int const c_row_stride,
@@ -41,9 +45,10 @@ kernel void gemm_kernel(
     int const batch_stride_b,
     int const batch_stride_c) {
 
-    int i = get_global_id(0); // row in C
-    int j = get_global_id(1); // col in C
-    int b = get_global_id(2); // batch index
+    // Map each work-group to one output element (i, j, b)
+    int i = get_group_id(0);
+    int j = get_group_id(1);
+    int b = get_group_id(2);
 
     if (i >= M || j >= N) return;
 
@@ -51,18 +56,25 @@ kernel void gemm_kernel(
     size_t baseB = (size_t)b * (size_t)batch_stride_b + (size_t)j * (size_t)b_col_stride;
     size_t idxC  = (size_t)b * (size_t)batch_stride_c + (size_t)i * (size_t)c_row_stride + (size_t)j * (size_t)c_col_stride;
 
+    uint lane = get_sub_group_local_id();
+    uint sg   = get_sub_group_size();
+
     Tcompute acc = (Tcompute)0;
-    for (int k = 0; k < K; ++k) {
-        T a = A[baseA + (size_t)k * (size_t)a_col_stride];             // A(i, k)
-        T bt = B[baseB + (size_t)k * (size_t)b_row_stride];            // B(k, j)
+    for (int k = (int)lane; k < K; k += (int)sg) {
+        T a = A[baseA + (size_t)k * (size_t)a_col_stride];   // A(i, k)
+        T bt = B[baseB + (size_t)k * (size_t)b_row_stride];  // B(k, j)
         acc += (Tcompute)a * (Tcompute)bt;
     }
 
-    Tcompute out = (Tcompute)alpha * acc;
-    if (beta != 0.0f) {
-        out += (Tcompute)beta * (Tcompute)C[idxC];
+    Tcompute sum = sub_group_reduce_add(acc);
+
+    if (lane == 0) {
+        Tcompute out = (Tcompute)alpha * sum;
+        if (beta != 0.0f) {
+            out += (Tcompute)beta * (Tcompute)C[idxC];
+        }
+        C[idxC] = (T)out;
     }
-    C[idxC] = (T)out;
 }
 )CLC";
 
@@ -324,7 +336,7 @@ infiniStatus_t launchKernel(
     clerr = clSetKernelArgSVMPointer(kernel,arg_idx++,c);
     if(clerr != CL_SUCCESS)
     {
-        std::cout<<clerr<<std::endl;
+        // std::cout<<"error:"<<clerr<<std::endl;
         size_t num_elems =
             (batch_size - 1) * c_batch_stride +
             (c_row_size - 1) * c_row_stride +
@@ -348,7 +360,7 @@ infiniStatus_t launchKernel(
     clerr = clSetKernelArgSVMPointer(kernel,arg_idx++,a);
     if(clerr != CL_SUCCESS)
     {
-        std::cout<<clerr<<std::endl;
+        // std::cout<<clerr<<std::endl;
         size_t num_elems =
             (batch_size - 1) * a_batch_stride +
             (a_row_size - 1) * a_row_stride +
@@ -371,7 +383,7 @@ infiniStatus_t launchKernel(
     clerr = clSetKernelArgSVMPointer(kernel,arg_idx++,b);
     if(clerr != CL_SUCCESS)
     {
-        std::cout<<clerr<<std::endl;
+        // std::cout<<clerr<<std::endl;
         size_t num_elems =
             (batch_size - 1) * b_batch_stride +
             (b_row_size - 1) * b_row_stride +
@@ -406,9 +418,28 @@ infiniStatus_t launchKernel(
     clerr |=clSetKernelArg(kernel,arg_idx++,sizeof(cl_int),&cl_batch_stride_b);
     clerr |=clSetKernelArg(kernel,arg_idx++,sizeof(cl_int),&cl_batch_stride_c);
     
+    // 选择本地/全局工作尺寸以匹配子组计算
+    // 使用首选工作组倍数作为子组大小的近似
+    size_t preferred_multiple = 0;
+    clerr = clGetKernelWorkGroupInfo(kernel, device,
+                                     CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                                     sizeof(preferred_multiple), &preferred_multiple, nullptr);
+    if (clerr != CL_SUCCESS || preferred_multiple == 0) {
+        preferred_multiple = 1; // fallback
+    }
+
+    // std::cout<<"work_gourp:"<<preferred_multiple<<std::endl;
+
+    size_t local_work_size[3]  = { preferred_multiple, 1, 1 };
+    size_t global_work_size[3] = { (size_t)M * local_work_size[0],
+                                   (size_t)N,
+                                   (size_t)batch_size };
+
     //提交到kernel执行队列
-    size_t global_work_size[3] = {(size_t)M,(size_t)N,(size_t)batch_size};
-    clerr = clEnqueueNDRangeKernel(cl_queue,kernel,3,nullptr,global_work_size,nullptr,0,nullptr,nullptr);
+    clerr = clEnqueueNDRangeKernel(cl_queue, kernel, 3, nullptr,
+                                   global_work_size, local_work_size,
+                                   0, nullptr, nullptr);
+
     if(c_svm)
     {
         size_t num_elems =
