@@ -9,7 +9,7 @@
 #include <memory>
 #include <sstream>
 
-// Add GEMM kernel source
+
 static const char *GemmKernelSource = R"CLC(
 #define CL_TARGET_OPENCL_VERSION 200
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
@@ -23,9 +23,7 @@ static const char *GemmKernelSource = R"CLC(
 #define Tcompute float
 #endif
 
-// Sub-group dot-product GEMM:
-// - One work-group computes one C(i, j, b)
-// - A single sub-group inside the work-group performs the dot product across K
+
 kernel void gemm_kernel(
     global T *C,
     int const c_row_stride,
@@ -45,7 +43,6 @@ kernel void gemm_kernel(
     int const batch_stride_b,
     int const batch_stride_c) {
 
-    // Map each work-group to one output element (i, j, b)
     int i = get_group_id(0);
     int j = get_group_id(1);
     int b = get_group_id(2);
@@ -131,7 +128,6 @@ static bool dtypeToClType(infiniDtype_t dt, std::string &out) {
     }
 }
 
-// debug todo:移动到common
 static const char *clErrorString(cl_int err) {
     switch (err) {
     case CL_SUCCESS:
@@ -256,7 +252,6 @@ infiniStatus_t Descriptor::create(
         return INFINI_STATUS_BAD_TENSOR_DTYPE;
     }
     
-    // Create matmul info using column major layout (standard for BLAS)
     auto result = MatmulInfo::create(c_desc, a_desc, b_desc, MatrixLayout::COL_MAJOR);
     CHECK_RESULT(result);
     auto info = result.take();
@@ -264,7 +259,7 @@ infiniStatus_t Descriptor::create(
     *desc_ptr = new Descriptor(
         dtype,
         std::move(info),
-        0, // No additional workspace needed for basic implementation
+        0, 
         new Opaque{reinterpret_cast<device::opencl::Handle *>(handle)->internal()},
         handle->device, 
         handle->device_id);

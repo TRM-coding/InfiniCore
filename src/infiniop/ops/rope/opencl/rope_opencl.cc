@@ -267,7 +267,6 @@ infiniStatus_t Descriptor::create(
     auto info = RoPEInfo::createRoPEInfo(y_desc, x_desc, pos_desc, sin_desc, cos_desc,algo);
     CHECK_RESULT(info);
 
-    // Create descriptor
     *desc_ptr = new Descriptor(
         info.take(),
         0,
