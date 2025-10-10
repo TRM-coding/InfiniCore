@@ -246,7 +246,6 @@ infiniStatus_t Descriptor::create(
     infiniopTensorDescriptor_t a_desc,
     infiniopTensorDescriptor_t b_desc) {
     
-    // Check that all tensors have the same data type
     auto dtype = c_desc->dtype();
     if (a_desc->dtype() != dtype || b_desc->dtype() != dtype) {
         return INFINI_STATUS_BAD_TENSOR_DTYPE;

@@ -1,0 +1,30 @@
+{
+    files = {
+        "pencl/.objs/infinicore/linux/x86_64/release/src/infinicore/tensor.cc.o",
+        "pencl/.objs/infinicore/linux/x86_64/release/src/infinicore/dtype.cc.o",
+        "pencl/.objs/infinicore/linux/x86_64/release/src/infinicore/infinicore.cc.o",
+        "pencl/.objs/infinicore/linux/x86_64/release/src/infinicore/device.cc.o",
+        "pencl/linux/x86_64/release/libinfini-utils.a",
+        "pencl/linux/x86_64/release/libinfinirt-cpu.a",
+        "pencl/linux/x86_64/release/libinfiniop-cpu.a"
+    },
+    values = {
+        "/usr/bin/g++",
+        {
+            "-shared",
+            "-m64",
+            "-fPIC",
+            "-L/home/tianruiming/miniconda3/envs/infini/lib",
+            "-Lpencl/linux/x86_64/release",
+            "-s",
+            "-lpython3.10",
+            "-linfiniop",
+            "-linfiniop-cpu",
+            "-linfiniccl",
+            "-linfinirt",
+            "-linfinirt-cpu",
+            "-linfini-utils",
+            "-fopenmp"
+        }
+    }
+}

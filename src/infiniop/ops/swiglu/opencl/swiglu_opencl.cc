@@ -375,7 +375,7 @@ infiniStatus_t launchKernel(
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, output_strides_svm);
     }
 
-    // a matrix (up)
+    // a matrix 
     void *a_svm = NULL;
     clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, const_cast<void *>(input_a_matrix));
     if (clerr != CL_SUCCESS) {
@@ -408,7 +408,7 @@ infiniStatus_t launchKernel(
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, a_stride_svm);
     }
 
-    // b matrix (gate)
+    // b matrix 
     void *b_svm = NULL;
     clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, const_cast<void *>(input_b_matrix));
     if (clerr != CL_SUCCESS) {
@@ -446,7 +446,7 @@ infiniStatus_t launchKernel(
 
     size_t global_work_size[1] = {outputsize};
 
-    // 启动 OpenCL kernel
+    // OpenCL kernel
     clerr = clEnqueueNDRangeKernel(cl_queue, kernel, 1, nullptr, global_work_size, nullptr, 0, nullptr, nullptr);
     if (clerr != CL_SUCCESS) {
         fprintf(stderr, "[OpenCL] clEnqueueNDRangeKernel failed: %s (%d)\n", clErrorString(clerr), clerr);

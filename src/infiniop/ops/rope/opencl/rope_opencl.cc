@@ -413,7 +413,7 @@ infiniStatus_t launchKernel(
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_nhead);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_seqlen);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &cl_is_gpt_j);
-    // 设置全局工作尺寸: (seqlen, nhead, table_dim)
+    //(seqlen, nhead, table_dim)
     size_t global_work_size[3] = {(size_t)seqlen, (size_t)nhead, (size_t)table_dim};
 
     // 启动kernel
@@ -425,7 +425,6 @@ infiniStatus_t launchKernel(
         return INFINI_STATUS_INTERNAL_ERROR;
     }
 
-    // 如果使用了 SVM 内存进行数据传输，执行数据传输
     if (y_svm) {
         size_t num_elems =
             (seqlen - 1) * y_stride_seqlen +

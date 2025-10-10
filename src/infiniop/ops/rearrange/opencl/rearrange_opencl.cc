@@ -424,14 +424,6 @@ infiniStatus_t launchKernel(
         }
     }
 
-    // 等待执行完成
-    
-
-    // 如果使用了 SVM 内存进行数据传输，执行数据传输
-    // if (y_svm) {
-    //     size_t num_bytes = count_ * unit_;
-    //     infinirtMemcpy(y, y_svm, num_bytes, INFINIRT_MEMCPY_D2H);
-    // }
 
     // 释放临时资源
     if (y_svm) infinirtFree(y_svm);

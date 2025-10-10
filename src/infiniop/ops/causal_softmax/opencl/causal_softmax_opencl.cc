@@ -367,7 +367,6 @@ infiniStatus_t Descriptor::calculate(
     void *y,
     const void *x,
     void *stream) const {
-    // std::cout<<"CAUSAL_SOFTMAX Running"<<std::endl;
     // 获取opencl后端设备
     void *device;
     void *context;
