@@ -334,7 +334,7 @@ infiniStatus_t launchKernel(
         arg_idx -= 1;
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, x_svm);
     }
-    printf("%d , %d , %d, \n", batch_size, static_cast<int>(stride_y_batch), static_cast<int>(stride_x_batch));
+    // printf("%d , %d , %d, \n", batch_size, static_cast<int>(stride_y_batch), static_cast<int>(stride_x_batch));
     cl_int s_x_batch = static_cast<cl_int>(stride_x_batch);
     clerr |= clSetKernelArg(kernel, arg_idx++, sizeof(cl_int), &s_x_batch);
     cl_int s_x_nhead = static_cast<cl_int>(stride_x_nhead);

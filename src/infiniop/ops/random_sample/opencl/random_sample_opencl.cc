@@ -440,8 +440,6 @@ infiniStatus_t launchKernel(
         infinirtFree(probs_svm);
     }
 
-    std::cout << "excute finished" << std::endl;
-
     clReleaseKernel(kernel);
     clReleaseProgram(program);
     
