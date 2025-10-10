@@ -390,7 +390,8 @@ infiniStatus_t Descriptor::calculate(
     void *y, const void *x, const void *w,
     void *stream) const {
     // std::cout<<"RMS_NORM Running"<<std::endl;
-
+    using clock = std::chrono::steady_clock;        // 单调时钟
+    auto t0 = clock::now();    
     if (workspace_size < _workspace_size) {
         return INFINI_STATUS_INSUFFICIENT_WORKSPACE;
     }
@@ -446,6 +447,9 @@ infiniStatus_t Descriptor::calculate(
     auto& cache_program = this->_opaque->program_cache;
     auto& cache_kernel = this->_opaque->kernel_cache;
     CHECK_STATUS(launchKernel(batch_size, nhead, dim, y, _info.atype, stride_y_batch, stride_y_nhead, x, stride_x_batch, stride_x_nhead, w, _info.wtype, _info.epsilon, block_size, clcontext, cldevice, clqueue,cache_program,cache_kernel));
+    auto t1 = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "RMS_NORM_TIME: " << ms/1000.0 << " ms\n";
     return INFINI_STATUS_SUCCESS;
 }
 

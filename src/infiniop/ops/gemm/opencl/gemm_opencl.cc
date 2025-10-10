@@ -9,6 +9,7 @@
 #include <memory>
 #include <sstream>
 
+#include <chrono>
 
 static const char *GemmKernelSource = R"CLC(
 #define CL_TARGET_OPENCL_VERSION 200
@@ -475,6 +476,8 @@ infiniStatus_t Descriptor::calculate(
     if (_info.is_transed) {
         std::swap(a, b);
     }
+    using clock = std::chrono::steady_clock;  
+    auto t0 = clock::now();
     // std::cout<<"GEMM Running"<<std::endl;
     void *device;
     void *context;
@@ -505,6 +508,9 @@ infiniStatus_t Descriptor::calculate(
     auto& kernel_cache=this->_opaque->kernel_cache;
     auto& program_cache=this->_opaque->program_cache;
     CHECK_STATUS(launchKernel(_info,_dtype,c,a,b,alpha,beta,clcontext,cldevice,clqueue,kernel_cache,program_cache));
+    auto t1 = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "GEMM_time: " << ms/1000.0 << " ms\n";
     return INFINI_STATUS_SUCCESS;
 }
 

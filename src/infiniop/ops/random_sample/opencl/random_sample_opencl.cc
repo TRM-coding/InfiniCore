@@ -9,6 +9,7 @@
 #include <memory>
 #include <sstream>
 #include <iostream>
+#include <chrono>
 
 
 static const char *RandomSampleKernelSource = R"CLC(
@@ -38,14 +39,14 @@ kernel void random_sample_kernel(
         return;
     }
 
-    // 1) Find max(probs)
+    
     COMPUTE_T max_val = (COMPUTE_T)(-INFINITY);
     for (int i = 0; i < N; ++i) {
         COMPUTE_T v = (COMPUTE_T)probs[i];
         if (v > max_val) max_val = v;
     }
 
-    // 2) Total softmax sum with temperature
+  
     COMPUTE_T inv_temp = (COMPUTE_T)1.0f / (COMPUTE_T)temperature; // follows CPU semantics (division as-is)
     COMPUTE_T total_sum = (COMPUTE_T)0;
     for (int i = 0; i < N; ++i) {
@@ -53,15 +54,14 @@ kernel void random_sample_kernel(
         total_sum += exp((v - max_val) * inv_temp);
     }
 
-    // 3) Determine k consistent with CPU semantics
+
     int k = topk;
     if (k <= 0 || k > N) k = N;
 
-    // Helper state for stable descending selection by value, tie by index
     COMPUTE_T prev_val = (COMPUTE_T)(INFINITY);
     int last_idx = -1;
 
-    // 4) Compute pk = cumulative sum up to k-th largest
+
     COMPUTE_T pk = (COMPUTE_T)0;
     for (int t = 0; t < k; ++t) {
         COMPUTE_T best_val = (COMPUTE_T)(-INFINITY);
@@ -78,18 +78,18 @@ kernel void random_sample_kernel(
             }
         }
 
-        if (best_idx < 0) break; // safety
+        if (best_idx < 0) break; 
         pk += exp((best_val - max_val) * inv_temp);
         prev_val = best_val;
         last_idx = best_idx;
     }
 
-    // 5) Compute plimit
+
     COMPUTE_T pp = total_sum * (COMPUTE_T)topp;
     COMPUTE_T min_pk_pp = (pk < pp) ? pk : pp;
     COMPUTE_T plimit = (COMPUTE_T)random_val * min_pk_pp;
 
-    // 6) Second pass: sample first index where cumulative >= plimit
+
     prev_val = (COMPUTE_T)(INFINITY);
     last_idx = -1;
     COMPUTE_T cumsum = (COMPUTE_T)0;
@@ -110,7 +110,7 @@ kernel void random_sample_kernel(
             }
         }
 
-        if (best_idx < 0) break; // safety
+        if (best_idx < 0) break; 
         cumsum += exp((best_val - max_val) * inv_temp);
         if (plimit <= cumsum) {
             out_idx = best_idx;
@@ -118,7 +118,7 @@ kernel void random_sample_kernel(
         }
         prev_val = best_val;
         last_idx = best_idx;
-        out_idx = best_idx; // fallback if plimit hits after last element due to FP rounding
+        out_idx = best_idx; 
     }
 
     result[0] = out_idx;
@@ -465,7 +465,8 @@ infiniStatus_t Descriptor::calculate(
     int topk,
     float temperature,
     void *stream) const {
-    
+     using clock = std::chrono::steady_clock;  
+     auto t0 = clock::now();
     // std::cout<<"RANDOM_SAMPLE Running"<<std::endl;
     void *device;
     void *context;
@@ -494,6 +495,9 @@ infiniStatus_t Descriptor::calculate(
     auto& program_cache=this->_opaque->program_cache;
     auto& kernel_cache=this->_opaque->kernel_cache;
     CHECK_STATUS(launchKernel(_info,result,probs,random_val,topp,topk,temperature,clcontext,cldevice,clqueue,program_cache,kernel_cache));
+    auto t1 = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "Random_sample_TIME: " << ms/1000.0 << " ms\n";
     return INFINI_STATUS_SUCCESS;
 }
 

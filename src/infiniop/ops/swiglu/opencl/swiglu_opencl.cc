@@ -10,6 +10,7 @@
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <chrono>
 
 static const char *SwigluKernelSource = R"CLC(
 #define CL_TARGET_OPENCL_VERSION 200
@@ -518,6 +519,8 @@ infiniStatus_t Descriptor::calculate(
     // std::cout<<"SWIGLU Running"<<std::endl;
     void *device;
     void *context;
+    using clock = std::chrono::steady_clock;        // 单调时钟
+    auto t0 = clock::now();
 
     CHECK_STATUS(infinirtGetOpenclDevice(&device));
     CHECK_STATUS(infinirtGetOpenclContext(&context));
@@ -543,7 +546,9 @@ infiniStatus_t Descriptor::calculate(
     auto& kernel=this->_opaque->kernel_cache;
     auto& program=this->_opaque->program_cache;
     CHECK_STATUS(launchKernel(_info, dtype, output, inputs, clcontext, cldevice, clqueue,program,kernel));
-
+    auto t1 = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "SWIGLU_TIME: " << ms/1000.0 << " ms\n";
     return INFINI_STATUS_SUCCESS;
 }
 } // namespace op::swiglu::opencl

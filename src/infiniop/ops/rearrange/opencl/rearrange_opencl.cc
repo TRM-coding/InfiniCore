@@ -9,6 +9,7 @@
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <chrono>
 
 inline size_t dtypeSize(infiniDtype_t dtype) {
     switch (dtype) {
@@ -168,35 +169,61 @@ static const char *clErrorString(cl_int err) {
 static const char *RearrangeKernelSource = R"CLC(
 #define CL_TARGET_OPENCL_VERSION 200
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+inline void vector_copy(global uchar *dst_bytes, global const uchar *src_bytes, int unit) {
+    int offset = 0;
+    for (; offset + 16 <= unit; offset += 16) {
+        uchar16 v = vload16(0, src_bytes + offset);
+        vstore16(v, 0, dst_bytes + offset);
+    }
+    for (; offset + 8 <= unit; offset += 8) {
+        uchar8 v = vload8(0, src_bytes + offset);
+        vstore8(v, 0, dst_bytes + offset);
+    }
+    for (; offset + 4 <= unit; offset += 4) {
+        uchar4 v = vload4(0, src_bytes + offset);
+        vstore4(v, 0, dst_bytes + offset);
+    }
+    for (; offset + 2 <= unit; offset += 2) {
+        uchar2 v = vload2(0, src_bytes + offset);
+        vstore2(v, 0, dst_bytes + offset);
+    }
+    for (; offset < unit; ++offset) {
+        dst_bytes[offset] = src_bytes[offset];
+    }
+}
+
 kernel void rearrange_kernel(
-    global char* dst,         // 输出数据指针
-    global const char* src,   // 输入数据指针
-    int ndim,                 // 维度数
-    long count,               // 元素块数量
-    int unit,                 // 每个块大小（字节数）
-    global const long* idx_strides,  // idx_strides 数组
-    global const long* dst_strides,  // dst_strides 数组
-    global const long* src_strides   // src_strides 数组
-)
+    global char* restrict dst,
+    global const char* restrict src,
+    const int ndim,
+    const long count,
+    const int unit,
+    global const long* restrict idx_strides,
+    global const long* restrict dst_strides,
+    global const long* restrict src_strides)
 {
     size_t gid = get_global_id(0);
-    if ((long)gid >= count) return;
-
-    global char* dptr = dst;
-    global const char* sptr = src;
+    if ((long)gid >= count) {
+        return;
+    }
 
     long rem = (long)gid;
+    long dst_offset = 0;
+    long src_offset = 0;
+
     for (int j = 0; j < ndim; ++j) {
-        long k = rem / idx_strides[j];
-        dptr += k * dst_strides[j];
-        sptr += k * src_strides[j];
-        rem  = rem % idx_strides[j];
+        long stride = idx_strides[j];
+        long idx = rem / stride;
+        rem -= idx * stride;
+        dst_offset += idx * dst_strides[j];
+        src_offset += idx * src_strides[j];
     }
 
-    // 按字节拷贝 unit 大小
-    for (int b = 0; b < unit; ++b) {
-        dptr[b] = sptr[b];
-    }
+    global uchar* dst_bytes = (global uchar*)(dst + dst_offset);
+    global const uchar* src_bytes = (global const uchar*)(src + src_offset);
+
+    vector_copy(dst_bytes, src_bytes, unit);
 }
 )CLC";
 
@@ -293,13 +320,7 @@ infiniStatus_t launchKernel(
         }
         std::memcpy(svm_ptr, host_ptr, bytes);
         err = clEnqueueSVMUnmap(cl_queue, svm_ptr, 0, nullptr, nullptr);
-        if (err != CL_SUCCESS) {
-            return INFINI_STATUS_INTERNAL_ERROR;
-        }
-        // err = clFinish(cl_queue);
-        if (err != CL_SUCCESS) {
-            return INFINI_STATUS_INTERNAL_ERROR;
-        }
+        
         return INFINI_STATUS_SUCCESS;
     };
     auto copySvmToHost = [&](void *host_ptr, void *svm_ptr, size_t bytes) -> infiniStatus_t {
@@ -312,13 +333,7 @@ infiniStatus_t launchKernel(
         }
         std::memcpy(host_ptr, svm_ptr, bytes);
         err = clEnqueueSVMUnmap(cl_queue, svm_ptr, 0, nullptr, nullptr);
-        if (err != CL_SUCCESS) {
-            return INFINI_STATUS_INTERNAL_ERROR;
-        }
-        // err = clFinish(cl_queue);
-        if (err != CL_SUCCESS) {
-            return INFINI_STATUS_INTERNAL_ERROR;
-        }
+        
         return INFINI_STATUS_SUCCESS;
     };
 
@@ -459,6 +474,8 @@ infiniStatus_t Descriptor::calculate(
     const void *x,
     void *stream) const {
     // std::cout<<"REARRANGE Running"<<std::endl;
+    using clock = std::chrono::steady_clock;        // 单调时钟
+    auto t0 = clock::now();
     void *device;
     void *context;
 
@@ -486,7 +503,9 @@ infiniStatus_t Descriptor::calculate(
     auto program=this->_opaque->program_cache;
     auto kernel=this->_opaque->kernel_cache;
     CHECK_STATUS(launchKernel(_meta, dtype, y, x, clcontext, cldevice, clqueue,program,kernel));
-
+    auto t1 = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "Rearrange_TIME: " << ms/1000.0 << " ms\n";
     return INFINI_STATUS_SUCCESS;
 }
 

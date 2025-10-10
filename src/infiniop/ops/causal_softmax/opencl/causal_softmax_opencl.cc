@@ -8,10 +8,14 @@
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <chrono>
 
 static const char *CausalSoftmaxKernelSource = R"CLC(
 #define CL_TARGET_OPENCL_VERSION 200
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
+#pragma OPENCL EXTENSION cl_khr_subgroups : enable
+#pragma OPENCL EXTENSION cl_khr_subgroup_non_uniform_arithmetic : enable
+#define MAX_SUBGROUPS 32
 
 #ifndef SCALAR_T
 #define SCALAR_T float
@@ -33,45 +37,97 @@ kernel void causal_softmax_kernel(
     int const seq_len,
     int const total_seq_len
 ){
-    size_t i = get_global_id(0);      // sequence index within current window
-    size_t b = get_global_id(1);      // batch index
+    size_t lid = get_local_id(0);
+    size_t group_size = get_local_size(0);
+    uint subgroup_id = get_sub_group_id();
+    uint subgroup_local_id = get_sub_group_local_id();
+    uint subgroup_size = get_sub_group_size();
+    uint num_subgroups = get_num_sub_groups();
+    if (num_subgroups > MAX_SUBGROUPS) return;
 
+    __local COMPUTE_T shared_max[MAX_SUBGROUPS];
+    __local COMPUTE_T shared_sum[MAX_SUBGROUPS];
+
+    size_t i = get_group_id(1);
+    size_t b = get_group_id(2);
     if (i >= (size_t)seq_len) return;
 
     int max_j = (total_seq_len - seq_len) + (int)i;
+    if (max_j >= total_seq_len) max_j = total_seq_len - 1;
 
     size_t x_base = (size_t)b * (size_t)x_stride_batch + (size_t)i * (size_t)x_stride_i;
     size_t y_base = (size_t)b * (size_t)y_stride_batch + (size_t)i * (size_t)y_stride_i;
 
-    // Mask future positions to zero
-    for (int j = max_j + 1; j < total_seq_len; ++j) {
-        size_t y_off = y_base + (size_t)j * (size_t)y_stride_j;
-        y[y_off] = (SCALAR_T)(0.0f);
+    if (max_j < 0) {
+        for (int j = (int)lid; j < total_seq_len; j += (int)group_size) {
+            size_t y_off = y_base + (size_t)j * (size_t)y_stride_j;
+            y[y_off] = (SCALAR_T)(0.0f);
+        }
+        return;
     }
 
-    // Find max for numerical stability
-    COMPUTE_T max_val = -INFINITY;
-    for (int j = 0; j <= max_j; ++j) {
+    COMPUTE_T thread_max = -INFINITY;
+    for (int j = (int)lid; j <= max_j; j += (int)group_size) {
         size_t x_off = x_base + (size_t)j * (size_t)x_stride_j;
         COMPUTE_T v = (COMPUTE_T)(x[x_off]);
-        if (v > max_val) max_val = v;
+        thread_max = fmax(thread_max, v);
     }
 
-    // Exponentiate and accumulate sum
-    COMPUTE_T sum = 0.0f;
-    for (int j = 0; j <= max_j; ++j) {
+    COMPUTE_T subgroup_max = sub_group_reduce_max(thread_max);
+    if (subgroup_local_id == 0) {
+        shared_max[subgroup_id] = subgroup_max;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (subgroup_id == 0) {
+        COMPUTE_T candidate = (subgroup_local_id < num_subgroups) ? shared_max[subgroup_local_id] : -INFINITY;
+        for (uint idx = subgroup_local_id + subgroup_size; idx < num_subgroups; idx += subgroup_size) {
+            candidate = fmax(candidate, shared_max[idx]);
+        }
+        candidate = sub_group_reduce_max(candidate);
+        if (subgroup_local_id == 0) {
+            shared_max[0] = candidate;
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    COMPUTE_T max_val = shared_max[0];
+
+    COMPUTE_T thread_sum = 0.0f;
+    for (int j = (int)lid; j <= max_j; j += (int)group_size) {
         size_t x_off = x_base + (size_t)j * (size_t)x_stride_j;
         size_t y_off = y_base + (size_t)j * (size_t)y_stride_j;
-        COMPUTE_T e = exp((COMPUTE_T)(x[x_off]) - max_val);
-        sum += e;
+        COMPUTE_T e = exp(((COMPUTE_T)(x[x_off])) - max_val);
+        thread_sum += e;
         y[y_off] = (SCALAR_T)(e);
     }
 
-    // Normalize
-    COMPUTE_T inv_sum = 1.0f / sum;
-    for (int j = 0; j <= max_j; ++j) {
+    COMPUTE_T subgroup_sum = sub_group_reduce_add(thread_sum);
+    if (subgroup_local_id == 0) {
+        shared_sum[subgroup_id] = subgroup_sum;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (subgroup_id == 0) {
+        COMPUTE_T candidate = (subgroup_local_id < num_subgroups) ? shared_sum[subgroup_local_id] : 0.0f;
+        for (uint idx = subgroup_local_id + subgroup_size; idx < num_subgroups; idx += subgroup_size) {
+            candidate += shared_sum[idx];
+        }
+        candidate = sub_group_reduce_add(candidate);
+        if (subgroup_local_id == 0) {
+            shared_sum[0] = candidate;
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    COMPUTE_T inv_sum = 1.0f / shared_sum[0];
+
+    for (int j = (int)lid; j <= max_j; j += (int)group_size) {
         size_t y_off = y_base + (size_t)j * (size_t)y_stride_j;
-        y[y_off] = (SCALAR_T)(((COMPUTE_T)(y[y_off])) * inv_sum);
+        COMPUTE_T v = (COMPUTE_T)(y[y_off]);
+        y[y_off] = (SCALAR_T)(v * inv_sum);
+    }
+    for (int j = max_j + 1 + (int)lid; j < total_seq_len; j += (int)group_size) {
+        size_t y_off = y_base + (size_t)j * (size_t)y_stride_j;
+        y[y_off] = (SCALAR_T)(0.0f);
     }
 }
 )CLC";
@@ -352,9 +408,14 @@ infiniStatus_t launchKernel(
     clerr |= clSetKernelArg(kernel,arg_idx++,sizeof(cl_int),&cl_seq_number); 
     clerr |= clSetKernelArg(kernel,arg_idx++,sizeof(cl_int),&cl_total_seq_len); 
 
-    // 提交到kernel执行队列 (2D: seq_len x batch_size)
-    size_t global_work_size[2] = {(size_t)seq_number,(size_t)batch_size};
-    clerr = clEnqueueNDRangeKernel(cl_queue,kernel,2,nullptr,global_work_size,nullptr,0,nullptr,nullptr);
+    // if (clerr != CL_SUCCESS) {
+    //     return INFINI_STATUS_RUNTIME_ERROR;
+    // }
+
+    const size_t workgroup_size = 128;
+    size_t global_work_size[3] = {workgroup_size, static_cast<size_t>(seq_number), static_cast<size_t>(batch_size)};
+    size_t local_work_size[3] = {workgroup_size, 1, 1};
+    clerr = clEnqueueNDRangeKernel(cl_queue,kernel,3,nullptr,global_work_size,local_work_size,0,nullptr,nullptr);
 
     // 确保执行完成后再进行可能的数据回传
     // clFinish(cl_queue);
@@ -384,6 +445,8 @@ infiniStatus_t Descriptor::calculate(
     void *y,
     const void *x,
     void *stream) const {
+    using clock = std::chrono::steady_clock;        // 单调时钟
+    auto t0 = clock::now();
     // 获取opencl后端设备
     void *device;
     void *context;
@@ -409,6 +472,9 @@ infiniStatus_t Descriptor::calculate(
     auto& program_cache=this->_opaque->program_cache;
     auto& kernel_cache=this->_opaque->kernel_cache;
     CHECK_STATUS(launchKernel(_info,y,x,clcontext,cldevice,clqueue,program_cache,kernel_cache));
+    auto t1 = clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "Causal_softmax_TIME: " << ms/1000.0 << " ms\n";
     return INFINI_STATUS_SUCCESS;
 }
 
