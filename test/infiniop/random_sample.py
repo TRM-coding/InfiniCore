@@ -167,12 +167,6 @@ def test(
             atol=atol,
             rtol=rtol,
         )
-    print("算子计算结果:\n",indices.actual_tensor())
-    print("------------")
-    print("ans:\n",ans)
-    print("算子计算结果:\n",logits.actual_tensor()[indices.actual_tensor()])
-    print("------------")
-    print("ans:\n",logits.torch_tensor()[ans])
     assert (
         indices.actual_tensor() == ans
         or logits.actual_tensor()[indices.actual_tensor()] == logits.torch_tensor()[ans]

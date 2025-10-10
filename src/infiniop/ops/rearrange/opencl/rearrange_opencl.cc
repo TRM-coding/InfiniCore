@@ -203,6 +203,11 @@ kernel void rearrange_kernel(
 namespace op::rearrange::opencl {
 
 Descriptor::~Descriptor() = default;
+struct Descriptor::Opaque {
+    std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_program program_cache=NULL;
+    cl_kernel kernel_cache=NULL;
+};
 
 infiniStatus_t Descriptor::create(
     infiniopHandle_t handle_,
@@ -227,10 +232,16 @@ infiniStatus_t Descriptor::create(
     auto result = utils::RearrangeMeta::create(y_shape.data(), dst_strides.data(), src_strides.data(), ndim, element_size);
     CHECK_RESULT(result);
 
+    auto opaque = new Descriptor::Opaque{
+        reinterpret_cast<device::opencl::Handle *>(handle)->internal(),
+        NULL,  // program_cache
+        NULL   // kernel_cache
+    };
+
     *desc_ptr = new Descriptor(
         result.take(),
         dtype,
-        nullptr,
+        opaque,
         handle->device,
         handle->device_id);
     return INFINI_STATUS_SUCCESS;
@@ -243,7 +254,9 @@ infiniStatus_t launchKernel(
     const void *x,
     cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_program& program,
+    cl_kernel& kernel) {
 
     auto ndim_ = info.ndim();
     auto count_ = info.count();
@@ -256,15 +269,17 @@ infiniStatus_t launchKernel(
     const char *src_ptr = RearrangeKernelSource;
     size_t src_len = std::strlen(src_ptr);
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
+    if(program==NULL){
+        program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
 
-    // 构造编译命令并完成编译
-    std::string build_opts;
-    build_opts += "-cl-std=CL2.0 ";
-    clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
-
+        // 构造编译命令并完成编译
+        std::string build_opts;
+        build_opts += "-cl-std=CL2.0 ";
+        clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
+    }
     // 获取内核代码
-    cl_kernel kernel = clCreateKernel(program, "rearrange_kernel", &clerr);
+    if(kernel==NULL)
+        kernel = clCreateKernel(program, "rearrange_kernel", &clerr);
     int arg_idx = 0;
 
 
@@ -281,7 +296,7 @@ infiniStatus_t launchKernel(
         if (err != CL_SUCCESS) {
             return INFINI_STATUS_INTERNAL_ERROR;
         }
-        err = clFinish(cl_queue);
+        // err = clFinish(cl_queue);
         if (err != CL_SUCCESS) {
             return INFINI_STATUS_INTERNAL_ERROR;
         }
@@ -300,7 +315,7 @@ infiniStatus_t launchKernel(
         if (err != CL_SUCCESS) {
             return INFINI_STATUS_INTERNAL_ERROR;
         }
-        err = clFinish(cl_queue);
+        // err = clFinish(cl_queue);
         if (err != CL_SUCCESS) {
             return INFINI_STATUS_INTERNAL_ERROR;
         }
@@ -315,8 +330,8 @@ infiniStatus_t launchKernel(
         infinirtMalloc(&y_svm, num_bytes);
         if (copyHostToSvm(y_svm, y, num_bytes) != INFINI_STATUS_SUCCESS) {
             if (y_svm) infinirtFree(y_svm);
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
+            // clReleaseKernel(kernel);
+            // clReleaseProgram(program);
             return INFINI_STATUS_INTERNAL_ERROR;
         }
         arg_idx -= 1;
@@ -332,8 +347,8 @@ infiniStatus_t launchKernel(
         if (copyHostToSvm(x_svm, x, num_bytes) != INFINI_STATUS_SUCCESS) {
             if (y_svm) infinirtFree(y_svm);
             if (x_svm) infinirtFree(x_svm);
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
+            // clReleaseKernel(kernel);
+            // clReleaseProgram(program);
             return INFINI_STATUS_INTERNAL_ERROR;
         }
         arg_idx -= 1;
@@ -358,8 +373,8 @@ infiniStatus_t launchKernel(
             if (y_svm) infinirtFree(y_svm);
             if (x_svm) infinirtFree(x_svm);
             if (idx_strides_svm) infinirtFree(idx_strides_svm);
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
+            // clReleaseKernel(kernel);
+            // clReleaseProgram(program);
             return INFINI_STATUS_INTERNAL_ERROR;
         }
         arg_idx -= 1;
@@ -377,8 +392,8 @@ infiniStatus_t launchKernel(
             if (x_svm) infinirtFree(x_svm);
             if (idx_strides_svm) infinirtFree(idx_strides_svm);
             if (dst_strides_svm) infinirtFree(dst_strides_svm);
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
+            // clReleaseKernel(kernel);
+            // clReleaseProgram(program);
             return INFINI_STATUS_INTERNAL_ERROR;
         }
         arg_idx -= 1;
@@ -397,8 +412,8 @@ infiniStatus_t launchKernel(
             if (idx_strides_svm) infinirtFree(idx_strides_svm);
             if (dst_strides_svm) infinirtFree(dst_strides_svm);
             if (src_strides_svm) infinirtFree(src_strides_svm);
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
+            // clReleaseKernel(kernel);
+            // clReleaseProgram(program);
             return INFINI_STATUS_INTERNAL_ERROR;
         }
         arg_idx -= 1;
@@ -418,8 +433,8 @@ infiniStatus_t launchKernel(
             if (idx_strides_svm) infinirtFree(idx_strides_svm);
             if (dst_strides_svm) infinirtFree(dst_strides_svm);
             if (src_strides_svm) infinirtFree(src_strides_svm);
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
+            // clReleaseKernel(kernel);
+            // clReleaseProgram(program);
             return INFINI_STATUS_INTERNAL_ERROR;
         }
     }
@@ -433,8 +448,8 @@ infiniStatus_t launchKernel(
     if (src_strides_svm) infinirtFree(src_strides_svm);
 
     // 释放OpenCL对象
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
 
     return INFINI_STATUS_SUCCESS;
 }
@@ -468,7 +483,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     auto clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(_meta, dtype, y, x, clcontext, cldevice, clqueue));
+    auto program=this->_opaque->program_cache;
+    auto kernel=this->_opaque->kernel_cache;
+    CHECK_STATUS(launchKernel(_meta, dtype, y, x, clcontext, cldevice, clqueue,program,kernel));
 
     return INFINI_STATUS_SUCCESS;
 }

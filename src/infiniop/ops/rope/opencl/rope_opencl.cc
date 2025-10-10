@@ -251,6 +251,12 @@ namespace op::rope::opencl {
 
 Descriptor::~Descriptor() = default;
 
+struct Descriptor::Opaque {
+    std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_program program_cache=NULL;
+    cl_kernel kernel_cache=NULL;
+};
+
 infiniStatus_t Descriptor::create(
     infiniopHandle_t handle_,
     Descriptor **desc_ptr,
@@ -267,10 +273,16 @@ infiniStatus_t Descriptor::create(
     auto info = RoPEInfo::createRoPEInfo(y_desc, x_desc, pos_desc, sin_desc, cos_desc,algo);
     CHECK_RESULT(info);
 
+    auto opaque = new Descriptor::Opaque{
+        reinterpret_cast<device::opencl::Handle *>(handle)->internal(),
+        NULL,  // program_cache
+        NULL   // kernel_cache
+    };
+
     *desc_ptr = new Descriptor(
         info.take(),
         0,
-        nullptr,
+        opaque,
         handle->device,
         handle->device_id);
 
@@ -287,7 +299,9 @@ infiniStatus_t launchKernel(
     const void *cos_table,
     cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_program& program,
+    cl_kernel& kernel) {
     auto y_stride_seqlen = info.y_stride_seqlen;
     auto x_stride_seqlen = info.x_stride_seqlen;
     auto y_stride_nhead = info.y_stride_nhead;
@@ -307,36 +321,40 @@ infiniStatus_t launchKernel(
     const char *src_ptr = RopeKernelSource;
     size_t src_len = std::strlen(src_ptr);
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
-    if (clerr != CL_SUCCESS || program == nullptr) {
-        return INFINI_STATUS_INTERNAL_ERROR;
-    }
-
-    // 构造编译命令并完成编译
-    std::string build_opts;
-    build_opts += "-D T=" + dt + " ";
-    build_opts += "-D Tcompute=" + dt_compute + " ";
-    build_opts += "-D Tpos=" + dt_pos + " ";
-    build_opts += "-cl-std=CL2.0 ";
-    clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
-    if (clerr != CL_SUCCESS) {
-        size_t log_size = 0;
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
-        if (log_size > 0) {
-            std::vector<char> log(log_size + 1);
-            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
-            log[log_size] = '\0';
-            printf("OpenCL build log (rope): %s\n", log.data());
+    if(program==NULL){
+        program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
+        if (clerr != CL_SUCCESS || program == nullptr) {
+            return INFINI_STATUS_INTERNAL_ERROR;
         }
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
+
+        // 构造编译命令并完成编译
+        std::string build_opts;
+        build_opts += "-D T=" + dt + " ";
+        build_opts += "-D Tcompute=" + dt_compute + " ";
+        build_opts += "-D Tpos=" + dt_pos + " ";
+        build_opts += "-cl-std=CL2.0 ";
+        clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            size_t log_size = 0;
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+            if (log_size > 0) {
+                std::vector<char> log(log_size + 1);
+                clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+                log[log_size] = '\0';
+                printf("OpenCL build log (rope): %s\n", log.data());
+            }
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
     }
 
     // 获取内核代码
-    cl_kernel kernel = clCreateKernel(program, "rope_kernel", &clerr);
-    if (clerr != CL_SUCCESS || kernel == nullptr) {
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
+    if(kernel==NULL){
+        kernel = clCreateKernel(program, "rope_kernel", &clerr);
+        if (clerr != CL_SUCCESS || kernel == nullptr) {
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
     }
     int arg_idx = 0;
 
@@ -420,8 +438,8 @@ infiniStatus_t launchKernel(
     clerr = clEnqueueNDRangeKernel(cl_queue, kernel, 3, nullptr, global_work_size, nullptr, 0, nullptr, nullptr);
     if (clerr != CL_SUCCESS) {
         fprintf(stderr, "[OpenCL][rope] clEnqueueNDRangeKernel failed: %s (%d)\n", clErrorString(clerr), clerr);
-        clReleaseKernel(kernel);
-        clReleaseProgram(program);
+        // clReleaseKernel(kernel);
+        // clReleaseProgram(program);
         return INFINI_STATUS_INTERNAL_ERROR;
     }
 
@@ -447,8 +465,8 @@ infiniStatus_t launchKernel(
     }
 
     // 释放资源
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
     return INFINI_STATUS_SUCCESS;
 }
 
@@ -486,7 +504,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     auto clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(_info, _info.data_type, y, x, pos_ids, sin_table, cos_table, clcontext, cldevice, clqueue));
+    auto& program=this->_opaque->program_cache;
+    auto& kernel=this->_opaque->kernel_cache;
+    CHECK_STATUS(launchKernel(_info, _info.data_type, y, x, pos_ids, sin_table, cos_table, clcontext, cldevice, clqueue,program,kernel));
     return INFINI_STATUS_SUCCESS;
 }
 

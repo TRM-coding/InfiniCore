@@ -234,14 +234,26 @@ namespace op::causal_softmax::opencl {
 
 Descriptor::~Descriptor() {}
 
+
+struct Descriptor::Opaque {
+    std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_program program_cache=NULL;
+    cl_kernel kernel_cache=NULL;
+};
+
 infiniStatus_t Descriptor::create(
     infiniopHandle_t handle,
     Descriptor **desc_ptr,
     infiniopTensorDescriptor_t y_desc,
     infiniopTensorDescriptor_t x_desc) {
     auto result = CausalSoftmaxInfo::create(y_desc, x_desc);
+    auto opaque = new Descriptor::Opaque{
+        reinterpret_cast<device::opencl::Handle *>(handle)->internal(),
+        NULL,  // program_cache
+        NULL   // kernel_cache
+    };
     CHECK_RESULT(result);
-    *desc_ptr = new Descriptor(nullptr, result.take(), 0, handle->device, handle->device_id);
+    *desc_ptr = new Descriptor(opaque, result.take(), 0, handle->device, handle->device_id);
     return INFINI_STATUS_SUCCESS;
 }
 
@@ -249,7 +261,9 @@ infiniStatus_t launchKernel(
     const CausalSoftmaxInfo &info,
     void *y,const void *x, cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_program& program,
+    cl_kernel& kernel) {
     
     // 获取算子元数据
     auto dtype=info.dtype;
@@ -274,17 +288,20 @@ infiniStatus_t launchKernel(
     const char * src_ptr = CausalSoftmaxKernelSource;
     size_t src_len = std::strlen(src_ptr);
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context,1,&src_ptr,&src_len,&clerr);
+    if(program==NULL){
+        program = clCreateProgramWithSource(context,1,&src_ptr,&src_len,&clerr);
 
-    // 构造编译命令并完成编译
-    std::string build_opts;
-    build_opts += "-cl-std=CL2.0 ";
-    build_opts += ("-D SCALAR_T=" + dt + " ");
-    build_opts += ("-D COMPUTE_T=" + dt_compute + " ");
-    clerr=clBuildProgram(program,1,&device,build_opts.c_str(),nullptr,nullptr);
-
+        // 构造编译命令并完成编译
+        std::string build_opts;
+        build_opts += "-cl-std=CL2.0 ";
+        build_opts += ("-D SCALAR_T=" + dt + " ");
+        build_opts += ("-D COMPUTE_T=" + dt_compute + " ");
+        clerr=clBuildProgram(program,1,&device,build_opts.c_str(),nullptr,nullptr);
+    }
     // 获取内核代码
-    cl_kernel kernel = clCreateKernel(program,"causal_softmax_kernel",&clerr); 
+    if(kernel==NULL){
+        kernel = clCreateKernel(program,"causal_softmax_kernel",&clerr); 
+    }
     int arg_idx=0;
 
     // X矩阵参数传入
@@ -340,7 +357,7 @@ infiniStatus_t launchKernel(
     clerr = clEnqueueNDRangeKernel(cl_queue,kernel,2,nullptr,global_work_size,nullptr,0,nullptr,nullptr);
 
     // 确保执行完成后再进行可能的数据回传
-    clFinish(cl_queue);
+    // clFinish(cl_queue);
 
     if(y_svm)
     {
@@ -356,8 +373,8 @@ infiniStatus_t launchKernel(
         infinirtFree(x_svm);
     }
 
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
     
     return INFINI_STATUS_SUCCESS;
 }
@@ -389,7 +406,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     auto clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(_info,y,x,clcontext,cldevice,clqueue));
+    auto& program_cache=this->_opaque->program_cache;
+    auto& kernel_cache=this->_opaque->kernel_cache;
+    CHECK_STATUS(launchKernel(_info,y,x,clcontext,cldevice,clqueue,program_cache,kernel_cache));
     return INFINI_STATUS_SUCCESS;
 }
 

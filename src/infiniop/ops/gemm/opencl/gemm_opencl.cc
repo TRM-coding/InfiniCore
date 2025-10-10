@@ -233,6 +233,8 @@ namespace op::gemm::opencl {
 
 struct Descriptor::Opaque {
     std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_program program_cache=NULL;
+    cl_kernel kernel_cache=NULL;
 };
 
 Descriptor::~Descriptor() {
@@ -274,7 +276,9 @@ infiniStatus_t launchKernel(
     float alpha, float beta,
     cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_kernel& kernel,
+    cl_program& program) {
 
     //获取算子基本元数据
     auto batch_size=info.batch;
@@ -311,17 +315,20 @@ infiniStatus_t launchKernel(
     const char * src_ptr = GemmKernelSource;
     size_t src_len = std::strlen(src_ptr);
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context,1,&src_ptr,&src_len,&clerr);
-
-    //构造编译命令并完成编译
-    std::string build_opts;
-    build_opts += "-D T=" + dt + " ";
-    build_opts += "-D Tcompute=" + dt_compute + " ";
-    build_opts += "-cl-std=CL2.0 ";
-    clerr=clBuildProgram(program,1,&device,build_opts.c_str(),nullptr,nullptr);
-
+    if(program==NULL){
+        program = clCreateProgramWithSource(context,1,&src_ptr,&src_len,&clerr);
+        // std::cout<<std::endl<<"create gemm cache"<<std::endl;
+        //构造编译命令并完成编译
+        std::string build_opts;
+        build_opts += "-D T=" + dt + " ";
+        build_opts += "-D Tcompute=" + dt_compute + " ";
+        build_opts += "-cl-std=CL2.0 ";
+        clerr=clBuildProgram(program,1,&device,build_opts.c_str(),nullptr,nullptr);
+    }
     //获取内核代码
-    cl_kernel kernel = clCreateKernel(program,"gemm_kernel",&clerr); 
+    if(kernel==NULL){
+        kernel = clCreateKernel(program,"gemm_kernel",&clerr); 
+    }
     int arg_idx=0;
     //C矩阵参数传入/////////////////////////////////////////////////////////////////
 
@@ -359,6 +366,7 @@ infiniStatus_t launchKernel(
             (batch_size - 1) * a_batch_stride +
             (a_row_size - 1) * a_row_stride +
             (a_col_size - 1) * a_col_stride + 1;
+        // std::cout<<std::endl<<"SVM_failed"<<std::endl;
         infinirtMalloc(&a_svm,num_elems*dtypeSize(dtype));
         infinirtMemcpy(a_svm,a,num_elems*dtypeSize(dtype),INFINIRT_MEMCPY_H2D);
         arg_idx -= 1;
@@ -444,8 +452,8 @@ infiniStatus_t launchKernel(
         infinirtFree(c_svm);
     }
 
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
     if (a_svm) {
         infinirtFree(a_svm);
     }
@@ -477,7 +485,7 @@ infiniStatus_t Descriptor::calculate(
     auto device_cl = reinterpret_cast<cl_device_id>(device);
     auto context_cl = reinterpret_cast<cl_context>(context);
 
-    //获取context中的设别数量
+    //获取context中的设备数量
     cl_uint num_devices;
     auto err_c = clGetContextInfo(context_cl,CL_CONTEXT_NUM_DEVICES,sizeof(num_devices),&num_devices,nullptr);
 
@@ -494,7 +502,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     auto clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(_info,_dtype,c,a,b,alpha,beta,clcontext,cldevice,clqueue));
+    auto& kernel_cache=this->_opaque->kernel_cache;
+    auto& program_cache=this->_opaque->program_cache;
+    CHECK_STATUS(launchKernel(_info,_dtype,c,a,b,alpha,beta,clcontext,cldevice,clqueue,kernel_cache,program_cache));
     return INFINI_STATUS_SUCCESS;
 }
 

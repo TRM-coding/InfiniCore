@@ -282,6 +282,8 @@ static const char *clErrorString(cl_int err) {
 namespace op::random_sample::opencl {
 struct Descriptor::Opaque {
     std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_kernel kernel_cache=NULL;
+    cl_program program_cache=NULL;
 };
 Descriptor::~Descriptor() {}
 size_t Descriptor::minWorkspaceSize() const {
@@ -315,7 +317,9 @@ infiniStatus_t launchKernel(
     float temperature,    
     cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_program& program,
+    cl_kernel& kernel) {
 
     //获取算子基本元数据
     auto dtype_in = info.dt_p;
@@ -333,36 +337,41 @@ infiniStatus_t launchKernel(
     const char * src_ptr = RandomSampleKernelSource;
     size_t src_len = std::strlen(src_ptr);
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
-    if (clerr != CL_SUCCESS || program == nullptr) {
-        return INFINI_STATUS_INTERNAL_ERROR;
-    }
+    if(program==NULL){
+        program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
+        if (clerr != CL_SUCCESS || program == nullptr) {
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+    
 
     //构造编译命令并完成编译
-    std::string build_opts;
-    build_opts += "-D SCALAR_T=" + dt + " ";
-    build_opts += "-D COMPUTE_T=" + dt_compute + " ";
-    build_opts += "-cl-std=CL2.0 ";
-    clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
-    if (clerr != CL_SUCCESS) {
-        // 打印构建日志，便于定位问题
-        size_t log_size = 0;
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
-        if (log_size > 0) {
-            std::vector<char> log(log_size + 1);
-            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
-            log[log_size] = '\0';
-            fprintf(stderr, "[OpenCL] random_sample build log:\n%s\n", log.data());
+        std::string build_opts;
+        build_opts += "-D SCALAR_T=" + dt + " ";
+        build_opts += "-D COMPUTE_T=" + dt_compute + " ";
+        build_opts += "-cl-std=CL2.0 ";
+        clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            // 打印构建日志，便于定位问题
+            size_t log_size = 0;
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+            if (log_size > 0) {
+                std::vector<char> log(log_size + 1);
+                clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+                log[log_size] = '\0';
+                fprintf(stderr, "[OpenCL] random_sample build log:\n%s\n", log.data());
+            }
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
         }
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
     }
 
     //获取内核代码
-    cl_kernel kernel = clCreateKernel(program, "random_sample_kernel", &clerr); 
-    if (clerr != CL_SUCCESS || kernel == nullptr) {
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
+    if(kernel==NULL){
+        kernel = clCreateKernel(program, "random_sample_kernel", &clerr); 
+        if (clerr != CL_SUCCESS || kernel == nullptr) {
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
     }
 
     int arg_idx = 0;
@@ -428,7 +437,7 @@ infiniStatus_t launchKernel(
     }
 
     // 确保kernel完成
-    clFinish(cl_queue);
+    // clFinish(cl_queue);
 
     // 拷回结果（当使用了临时SVM时）
     if (result_svm) {
@@ -440,8 +449,8 @@ infiniStatus_t launchKernel(
         infinirtFree(probs_svm);
     }
 
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
     
     return INFINI_STATUS_SUCCESS;
 }
@@ -482,7 +491,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     auto clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(_info,result,probs,random_val,topp,topk,temperature,clcontext,cldevice,clqueue));
+    auto& program_cache=this->_opaque->program_cache;
+    auto& kernel_cache=this->_opaque->kernel_cache;
+    CHECK_STATUS(launchKernel(_info,result,probs,random_val,topp,topk,temperature,clcontext,cldevice,clqueue,program_cache,kernel_cache));
     return INFINI_STATUS_SUCCESS;
 }
 

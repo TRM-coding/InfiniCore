@@ -258,6 +258,11 @@ static size_t tensorStorageElementCount(const size_t *shape, const ptrdiff_t *st
 namespace op::swiglu::opencl {
 
 Descriptor::~Descriptor() = default;
+struct Descriptor::Opaque {
+    std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_program program_cache=NULL;
+    cl_kernel kernel_cache=NULL;
+};
 infiniStatus_t Descriptor::create(
     infiniopHandle_t handle_,
     Descriptor **desc_ptr,
@@ -278,10 +283,15 @@ infiniStatus_t Descriptor::create(
     CHECK_SAME_SHAPE(out_shape, up_shape, gate_shape);
 
     auto info_result = op::elementwise::ElementwiseInfo::create(out_desc, input_desc_vec);
+    auto opaque = new Descriptor::Opaque{
+        reinterpret_cast<device::opencl::Handle *>(handle)->internal(),
+        NULL, // program_cache
+        NULL  // kernel_cache
+    };
     *desc_ptr = new Descriptor(
         info_result.take(),
         dtype,
-        nullptr,
+        opaque,
         0,
         handle->device,
         handle->device_id);
@@ -296,7 +306,9 @@ infiniStatus_t launchKernel(
     std::vector<const void *> inputs,
     cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_program& program,
+    cl_kernel& kernel) {
     auto ndim = _info.getNdim();
     auto outputsize = _info.getOutputSize();
     auto inputsize = _info.getInputSize();
@@ -320,23 +332,25 @@ infiniStatus_t launchKernel(
     const char *src_ptr = SwigluKernelSource;
     size_t src_len = std::strlen(src_ptr);
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
+    if(program==NULL){
+        program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
 
-    std::string cl_type;
-    if (!dtypeToClType(dtype, cl_type)) {
-        clReleaseProgram(program);
-        return INFINI_STATUS_BAD_TENSOR_DTYPE;
+        std::string cl_type;
+        if (!dtypeToClType(dtype, cl_type)) {
+            clReleaseProgram(program);
+            return INFINI_STATUS_BAD_TENSOR_DTYPE;
+        }
+        std::string build_opts;
+        build_opts += "-cl-std=CL2.0 ";
+        build_opts += "-DREAL_T=" + cl_type + " ";
+        if (dtype == INFINI_DTYPE_F16) {
+            build_opts += "-DUSE_HALF ";
+        }
+        clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
     }
-    std::string build_opts;
-    build_opts += "-cl-std=CL2.0 ";
-    build_opts += "-DREAL_T=" + cl_type + " ";
-    if (dtype == INFINI_DTYPE_F16) {
-        build_opts += "-DUSE_HALF ";
-    }
-    clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
-
     // 获取内核代码
-    cl_kernel kernel = clCreateKernel(program, "swiglu_kernel", &clerr);
+    if(kernel==NULL)
+        kernel = clCreateKernel(program, "swiglu_kernel", &clerr);
     int arg_idx = 0;
 
     // y 参数
@@ -375,7 +389,7 @@ infiniStatus_t launchKernel(
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, output_strides_svm);
     }
 
-    // a matrix 
+    // a matrix
     void *a_svm = NULL;
     clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, const_cast<void *>(input_a_matrix));
     if (clerr != CL_SUCCESS) {
@@ -408,7 +422,7 @@ infiniStatus_t launchKernel(
         clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, a_stride_svm);
     }
 
-    // b matrix 
+    // b matrix
     void *b_svm = NULL;
     clerr = clSetKernelArgSVMPointer(kernel, arg_idx++, const_cast<void *>(input_b_matrix));
     if (clerr != CL_SUCCESS) {
@@ -450,11 +464,11 @@ infiniStatus_t launchKernel(
     clerr = clEnqueueNDRangeKernel(cl_queue, kernel, 1, nullptr, global_work_size, nullptr, 0, nullptr, nullptr);
     if (clerr != CL_SUCCESS) {
         fprintf(stderr, "[OpenCL] clEnqueueNDRangeKernel failed: %s (%d)\n", clErrorString(clerr), clerr);
-        clReleaseKernel(kernel);
-        clReleaseProgram(program);
+        // clReleaseKernel(kernel);
+        // clReleaseProgram(program);
         return INFINI_STATUS_INTERNAL_ERROR;
     }
-    clFinish(cl_queue);
+    // clFinish(cl_queue);
 
     // 拷贝回输出
     if (y_svm && output_storage_bytes) {
@@ -462,18 +476,36 @@ infiniStatus_t launchKernel(
     }
 
     // 释放内存
-    if (y_svm) { infinirtFree(y_svm); }
-    if (a_svm) { infinirtFree(a_svm); }
-    if (b_svm) { infinirtFree(b_svm); }
-    if (output_shape_svm) { infinirtFree(output_shape_svm); }
-    if (output_strides_svm) { infinirtFree(output_strides_svm); }
-    if (a_shape_svm) { infinirtFree(a_shape_svm); }
-    if (a_stride_svm) { infinirtFree(a_stride_svm); }
-    if (b_shape_svm) { infinirtFree(b_shape_svm); }
-    if (b_stride_svm) { infinirtFree(b_stride_svm); }
+    if (y_svm) {
+        infinirtFree(y_svm);
+    }
+    if (a_svm) {
+        infinirtFree(a_svm);
+    }
+    if (b_svm) {
+        infinirtFree(b_svm);
+    }
+    if (output_shape_svm) {
+        infinirtFree(output_shape_svm);
+    }
+    if (output_strides_svm) {
+        infinirtFree(output_strides_svm);
+    }
+    if (a_shape_svm) {
+        infinirtFree(a_shape_svm);
+    }
+    if (a_stride_svm) {
+        infinirtFree(a_stride_svm);
+    }
+    if (b_shape_svm) {
+        infinirtFree(b_shape_svm);
+    }
+    if (b_stride_svm) {
+        infinirtFree(b_stride_svm);
+    }
 
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
     return INFINI_STATUS_SUCCESS;
 }
 
@@ -482,7 +514,7 @@ infiniStatus_t Descriptor::calculate(
     void *output,
     std::vector<const void *> inputs,
     void *stream) const {
-    
+
     // std::cout<<"SWIGLU Running"<<std::endl;
     void *device;
     void *context;
@@ -508,7 +540,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     auto clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(_info, dtype, output, inputs, clcontext, cldevice, clqueue));
+    auto& kernel=this->_opaque->kernel_cache;
+    auto& program=this->_opaque->program_cache;
+    CHECK_STATUS(launchKernel(_info, dtype, output, inputs, clcontext, cldevice, clqueue,program,kernel));
 
     return INFINI_STATUS_SUCCESS;
 }

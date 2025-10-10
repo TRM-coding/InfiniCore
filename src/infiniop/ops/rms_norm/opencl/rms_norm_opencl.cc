@@ -227,6 +227,8 @@ namespace op::rms_norm::opencl {
 
 struct Descriptor::Opaque {
     std::shared_ptr<device::opencl::Handle::Internal> internal;
+    cl_program program_cache=NULL;
+    cl_kernel kernel_cache=NULL;
 };
 
 Descriptor::~Descriptor() {
@@ -262,7 +264,9 @@ infiniStatus_t launchKernel(
     size_t block_size,
     cl_context context,
     cl_device_id device,
-    cl_command_queue cl_queue) {
+    cl_command_queue cl_queue,
+    cl_program& program,
+    cl_kernel& kernel) {
     std::string dt_a, dt_w, dt_compute;
     dt_compute = "float";
     if (!dtypeToClType(atype, dt_a)) {
@@ -278,38 +282,41 @@ infiniStatus_t launchKernel(
     size_t src_len = std::strlen(src_ptr);
 
     cl_int clerr;
-    cl_program program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
-    if (clerr != CL_SUCCESS || program == nullptr) {
-        return INFINI_STATUS_INTERNAL_ERROR;
-    }
-
-    // build options
-    std::string build_opts;
-    build_opts += "-D Ta=" + dt_a + " ";
-    build_opts += "-D Tw=" + dt_w + " ";
-    build_opts += "-D Tc=" + dt_compute + " ";
-    build_opts += "-D ITEMS_THREAD=" + std::to_string(items_perthread) + " ";
-    build_opts += "-cl-std=CL2.0 ";
-
-    clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
-    if (clerr != CL_SUCCESS) {
-        // build log
-        size_t log_size = 0;
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
-        if (log_size > 0) {
-            std::vector<char> log(log_size + 1);
-            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
-            log[log_size] = '\0';
-            printf("OpenCL build log: %s\n", log.data());
+    if(program==NULL){
+        program = clCreateProgramWithSource(context, 1, &src_ptr, &src_len, &clerr);
+        if (clerr != CL_SUCCESS || program == nullptr) {
+            return INFINI_STATUS_INTERNAL_ERROR;
         }
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
-    }
 
-    cl_kernel kernel = clCreateKernel(program, "rms_norm", &clerr);
-    if (clerr != CL_SUCCESS || kernel == nullptr) {
-        clReleaseProgram(program);
-        return INFINI_STATUS_INTERNAL_ERROR;
+        // build options
+        std::string build_opts;
+        build_opts += "-D Ta=" + dt_a + " ";
+        build_opts += "-D Tw=" + dt_w + " ";
+        build_opts += "-D Tc=" + dt_compute + " ";
+        build_opts += "-D ITEMS_THREAD=" + std::to_string(items_perthread) + " ";
+        build_opts += "-cl-std=CL2.0 ";
+
+        clerr = clBuildProgram(program, 1, &device, build_opts.c_str(), nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            // build log
+            size_t log_size = 0;
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+            if (log_size > 0) {
+                std::vector<char> log(log_size + 1);
+                clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+                log[log_size] = '\0';
+                printf("OpenCL build log: %s\n", log.data());
+            }
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
+    }
+    if(kernel==NULL){
+        kernel = clCreateKernel(program, "rms_norm", &clerr);
+        if (clerr != CL_SUCCESS || kernel == nullptr) {
+            clReleaseProgram(program);
+            return INFINI_STATUS_INTERNAL_ERROR;
+        }
     }
 
     int arg_idx = 0;
@@ -372,8 +379,8 @@ infiniStatus_t launchKernel(
     }
 
     // cleanup program/kernel
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    // clReleaseKernel(kernel);
+    // clReleaseProgram(program);
 
     return INFINI_STATUS_SUCCESS;
 }
@@ -420,19 +427,6 @@ infiniStatus_t Descriptor::calculate(
     if (err_c != CL_SUCCESS) {
         std::cerr << "Error getting devices in context!" << std::endl;
     } 
-    // else {
-    //     // std::cout << "Devices in Context:" << std::endl;
-    //     for (cl_uint i = 0; i < num_devices; ++i) {
-    //         char device_name[1024];
-    //         err_c = clGetDeviceInfo(devices_in_context[i], CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
-    //         if (err_c != CL_SUCCESS) {
-    //             std::cerr << "Error getting device name!" << std::endl;
-    //         } 
-    //         // else {
-    //         //     std::cout << "Device " << i + 1 << ": " << device_name << std::endl;
-    //         // }
-    //     }
-    // }
 
     char device_name[1024];
     auto err = clGetDeviceInfo(device_cl, CL_DEVICE_NAME, sizeof(device_name), device_name, nullptr);
@@ -449,7 +443,9 @@ infiniStatus_t Descriptor::calculate(
         CHECK_STATUS(infinirtGetOpenclStream(&stream));
     }
     cl_command_queue clqueue = static_cast<cl_command_queue>(stream);
-    CHECK_STATUS(launchKernel(batch_size, nhead, dim, y, _info.atype, stride_y_batch, stride_y_nhead, x, stride_x_batch, stride_x_nhead, w, _info.wtype, _info.epsilon, block_size, clcontext, cldevice, clqueue));
+    auto& cache_program = this->_opaque->program_cache;
+    auto& cache_kernel = this->_opaque->kernel_cache;
+    CHECK_STATUS(launchKernel(batch_size, nhead, dim, y, _info.atype, stride_y_batch, stride_y_nhead, x, stride_x_batch, stride_x_nhead, w, _info.wtype, _info.epsilon, block_size, clcontext, cldevice, clqueue,cache_program,cache_kernel));
     return INFINI_STATUS_SUCCESS;
 }
 
